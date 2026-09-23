@@ -86,6 +86,44 @@ npm run dev
 
 ---
 
+---
+
+## 📊 مزامنة Google Sheets (Google Sheets Synchronization)
+
+يتضمن النظام محرك مزامنة من جانب الخادم (Server-side Sync Engine) يقوم بتصدير بيانات تسجيلات الطلاب تلقائياً إلى جدول بيانات Google Sheets بعد إتمام التسجيل بنجاح في Supabase.
+
+### 1. إعداد Google Cloud & Service Account
+1. الدخول إلى [Google Cloud Console](https://console.cloud.google.com/).
+2. إنشاء مشروع جديد وتفعيل **Google Sheets API**.
+3. إنشاء **Service Account** وإنشاء مفتاح مفوض بصيغة **JSON Key**.
+4. استخراج `client_email` و `private_key` من ملف الـ JSON.
+
+### 2. إعداد جدول البيانات (Google Spreadsheet)
+1. الـ Spreadsheet المستهدف:
+   - **Spreadsheet ID**: `1G6uUU2t9d9R_ymqSFvCyvgZUff1MivfExCkLXcqMF4A`
+   - **Sheet/Tab Name**: `Registrations`
+   - **Range**: `Registrations!A:K`
+2. إضافة صف العناوين في الصف الأول (Row 1):
+   `Registration ID | Registration Date | Student Name | Phone | WhatsApp | Country | University | Academic Year | Registered Subjects | Total Amount | Sync Status`
+3. **مهم جداً (Permissions)**: مشاركة ملف الـ Spreadsheet مع إيميل الـ Service Account بصلاحية **Editor**.
+
+### 3. المتغيرات البيئية المطلوبة (.env.local)
+```env
+# Google Sheets Synchronization (Server-side ONLY)
+GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account@project.iam.gserviceaccount.com
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_SPREADSHEET_ID=1G6uUU2t9d9R_ymqSFvCyvgZUff1MivfExCkLXcqMF4A
+GOOGLE_SHEETS_RANGE=Registrations!A:K
+```
+
+### 4. آلية العمل وعدم التكرار (Idempotency & Retry)
+- **استقلالية التسجيل (UX Independence)**: نجاح تسجيل الطالب لا يتوقف على Google Sheets. يتم حفظ التسجيل في Supabase أولاً كـ Source of Truth، ثم تُطلق المزامنة في الخلفية. إذا تعذر الاتصال بـ Google Sheets، يظل تسجيل الطالب مؤكداً بنجاح وتُسجل الحالة `sync_status = 'failed'`.
+- **منع التكرار (Idempotency)**: قبل إضافة أي صف جديد، يفحص النظام العمود A في الشيت؛ إذا وُجد `Registration ID` مسبقاً، يتم تحديث الصف نفسه بدلاً من إضافة صف مكرر.
+- **إعادة المحاولة (Retry Mechanism)**: يمكن إعادة مزامنة أي تسجيل متعثر في أي وقت عبر استدعاء المسار الداخلي `/api/sync/sheets` بإرسال `{ "registrationId": "<UUID>" }`.
+
+---
+
 ## 🔒 الملاحظات الأمنية (Security Notes)
-- لا تضع مفاتيح سرية (Service Role Keys أو كلمات مرور) في الملفات العامة أو كود الواجهة الأمامية.
+- لا تضع مفاتيح سرية (Service Role Keys، Google Private Keys، أو كلمات مرور) في الملفات العامة أو كود الواجهة الأمامية.
 - تأكد من استخدام المتغيرات التي تبدأ بـ `NEXT_PUBLIC_` فقط للمفاتيح العامة المسموح بظهورها للمتصفح.
+- يتم تخزين والتعامل مع `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` حصرياً على الخادم (Server-Side) ولا يتم تضمينها في حزم الـ Client bundle.

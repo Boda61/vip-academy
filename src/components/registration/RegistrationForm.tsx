@@ -144,7 +144,25 @@ export default function RegistrationForm({
         subject_ids: data.subjectIds,
       });
 
+      // Show success screen immediately to the student without waiting for Google Sheets
       onSuccess(result, data);
+
+      // Trigger Google Sheets sync asynchronously in background (fire-and-forget)
+      if (result?.registration_id && sessionToken) {
+        fetch("/api/sync/sheets", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            registrationId: result.registration_id,
+            sessionToken: sessionToken,
+          }),
+        }).catch((syncErr) => {
+          // Log locally; registration in Supabase is already confirmed and safe
+          console.warn("[SheetsSync] Background sync request error:", syncErr);
+        });
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "حدث خطأ أثناء إرسال التسجيل.";
       if (msg.includes("جلسة") || msg.includes("مسبقاً") || msg.includes("صلاحية")) {
