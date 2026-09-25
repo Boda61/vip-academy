@@ -42,3 +42,86 @@ export interface QRTokenSession {
   expiresAt?: string;
   usedAt?: string;
 }
+
+// Admin & Catalog Types
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  isActive: boolean;
+}
+
+export interface AdminUniversity {
+  id: string;
+  name_ar: string;
+  name_en: string;
+  code: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface UniversityMutationInput {
+  name_ar: string;
+  name_en?: string;
+  code: string;
+  is_active?: boolean;
+}
+
+export interface AdminAcademicYear {
+  id: string;
+  name_ar: string;
+  name_en: string;
+  year_order: number;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface AcademicYearMutationInput {
+  name_ar: string;
+  name_en?: string;
+  year_order: number;
+  is_active?: boolean;
+}
+
+export interface AdminSubject {
+  id: string;
+  name_ar: string;
+  name_en: string | null;
+  price: number;
+  is_active: boolean;
+  university_id: string;
+  academic_year_id: string;
+  created_at?: string;
+  updated_at?: string;
+  universities?: {
+    id: string;
+    name_ar: string;
+    name_en: string;
+    code: string;
+  };
+  academic_years?: {
+    id: string;
+    name_ar: string;
+    name_en: string;
+    year_order: number;
+  };
+}
+
+export interface SubjectMutationInput {
+  name_ar: string;
+  name_en?: string | null;
+  price: number;
+  university_id: string;
+  academic_year_id: string;
+  is_active?: boolean;
+}
+
+export interface AdminStats {
+  totalSubjects: number;
+  activeSubjects: number;
+  inactiveSubjects: number;
+  totalUniversities: number;
+  activeUniversities: number;
+  totalAcademicYears: number;
+  activeAcademicYears: number;
+}
