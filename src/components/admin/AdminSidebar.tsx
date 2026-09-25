@@ -7,6 +7,8 @@ import {
   LayoutDashboard,
   Building2,
   GraduationCap,
+  CalendarDays,
+  Boxes,
   BookOpen,
   LogOut,
   X,
@@ -49,6 +51,18 @@ export default function AdminSidebar({
       label: "الفرق الدراسية",
       href: "/admin/academic-years",
       icon: GraduationCap,
+      exact: false,
+    },
+    {
+      label: "الترمات",
+      href: "/admin/semesters",
+      icon: CalendarDays,
+      exact: false,
+    },
+    {
+      label: "الموديولات",
+      href: "/admin/modules",
+      icon: Boxes,
       exact: false,
     },
     {

@@ -72,7 +72,7 @@ export default function SubjectSelector({
       {!hasSelectionCriteria ? (
         <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-6 text-center text-slate-500 text-xs">
           <BookOpen className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-          يرجى اختيار الجامعة والفرقة الدراسية أولاً لعرض المواد المتاحة.
+          يرجى اختيار الجامعة، الفرقة الدراسية، الترم، والموديول أولاً لعرض المواد المتاحة.
         </div>
       ) : loading ? (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center text-slate-500 text-xs">
@@ -82,7 +82,7 @@ export default function SubjectSelector({
       ) : subjects.length === 0 ? (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center text-slate-600 text-xs">
           <AlertCircle className="w-6 h-6 text-amber-500 mx-auto mb-1.5" />
-          لا توجد مواد مسجلة حالياً لهذه الفرقة والجامعة.
+          لا توجد مواد مسجلة حالياً لهذا الموديول والجامعة.
         </div>
       ) : (
         <div className="space-y-2">

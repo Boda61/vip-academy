@@ -7,9 +7,13 @@ import * as z from "zod";
 import {
   UniversityOption,
   AcademicYearOption,
+  SemesterOption,
+  ModuleOption,
   SubjectOption,
   fetchUniversities,
   fetchAcademicYears,
+  fetchSemesters,
+  fetchModules,
   fetchSubjects,
   submitRegistration,
   SubmitRegistrationResponse,
@@ -17,7 +21,16 @@ import {
 import PhoneInput from "./PhoneInput";
 import CountrySelect from "./CountrySelect";
 import SubjectSelector from "./SubjectSelector";
-import { User, Building2, GraduationCap, AlertTriangle, Send, Loader2 } from "lucide-react";
+import {
+  User,
+  Building2,
+  GraduationCap,
+  CalendarDays,
+  Boxes,
+  AlertTriangle,
+  Send,
+  Loader2,
+} from "lucide-react";
 
 const registrationSchema = z.object({
   fullName: z
@@ -35,6 +48,8 @@ const registrationSchema = z.object({
   country: z.string().min(2, "يرجى اختيار الدولة"),
   universityId: z.string().uuid("يرجى اختيار الجامعة"),
   academicYearId: z.string().uuid("يرجى اختيار الفرقة الدراسية"),
+  semesterId: z.string().uuid("يرجى اختيار الترم الدراسي"),
+  moduleId: z.string().uuid("يرجى اختيار الموديول"),
   subjectIds: z.array(z.string().uuid()).min(1, "يجب اختيار مادة دراسية واحدة على الأقل"),
 });
 
@@ -53,8 +68,13 @@ export default function RegistrationForm({
 }: RegistrationFormProps) {
   const [universities, setUniversities] = useState<UniversityOption[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([]);
+  const [semesters, setSemesters] = useState<SemesterOption[]>([]);
+  const [modules, setModules] = useState<ModuleOption[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+
   const [loadingCatalog, setLoadingCatalog] = useState(true);
+  const [loadingSemesters, setLoadingSemesters] = useState(false);
+  const [loadingModules, setLoadingModules] = useState(false);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -75,14 +95,18 @@ export default function RegistrationForm({
       country: "مصر",
       universityId: "",
       academicYearId: "",
+      semesterId: "",
+      moduleId: "",
       subjectIds: [],
     },
   });
 
   const selectedUniversityId = watch("universityId");
   const selectedAcademicYearId = watch("academicYearId");
+  const selectedSemesterId = watch("semesterId");
+  const selectedModuleId = watch("moduleId");
 
-  // Load Universities and Academic Years on mount
+  // 1. Load Universities and Academic Years on mount
   useEffect(() => {
     async function loadCatalog() {
       try {
@@ -102,9 +126,73 @@ export default function RegistrationForm({
     loadCatalog();
   }, []);
 
-  // Fetch subjects dynamically when University + Academic Year are chosen
+  // 2. Fetch Semesters when Academic Year changes (Cascading Reset)
   useEffect(() => {
-    if (!selectedUniversityId || !selectedAcademicYearId) {
+    if (!selectedAcademicYearId) {
+      setSemesters([]);
+      setModules([]);
+      setSubjects([]);
+      setValue("semesterId", "");
+      setValue("moduleId", "");
+      setValue("subjectIds", []);
+      return;
+    }
+
+    async function loadSemesters() {
+      try {
+        setLoadingSemesters(true);
+        setSemesters([]);
+        setModules([]);
+        setSubjects([]);
+        setValue("semesterId", "");
+        setValue("moduleId", "");
+        setValue("subjectIds", []);
+
+        const list = await fetchSemesters(selectedAcademicYearId);
+        setSemesters(list);
+      } catch (err: unknown) {
+        setFormError(err instanceof Error ? err.message : "تعذر تحميل قائمة الترمات.");
+      } finally {
+        setLoadingSemesters(false);
+      }
+    }
+
+    loadSemesters();
+  }, [selectedAcademicYearId, setValue]);
+
+  // 3. Fetch Modules when Semester changes (Cascading Reset)
+  useEffect(() => {
+    if (!selectedSemesterId) {
+      setModules([]);
+      setSubjects([]);
+      setValue("moduleId", "");
+      setValue("subjectIds", []);
+      return;
+    }
+
+    async function loadModules() {
+      try {
+        setLoadingModules(true);
+        setModules([]);
+        setSubjects([]);
+        setValue("moduleId", "");
+        setValue("subjectIds", []);
+
+        const list = await fetchModules(selectedSemesterId);
+        setModules(list);
+      } catch (err: unknown) {
+        setFormError(err instanceof Error ? err.message : "تعذر تحميل قائمة الموديولات.");
+      } finally {
+        setLoadingModules(false);
+      }
+    }
+
+    loadModules();
+  }, [selectedSemesterId, setValue]);
+
+  // 4. Fetch Subjects when University, Academic Year, Semester, and Module are selected
+  useEffect(() => {
+    if (!selectedUniversityId || !selectedAcademicYearId || !selectedSemesterId || !selectedModuleId) {
       setSubjects([]);
       setValue("subjectIds", []);
       return;
@@ -113,9 +201,14 @@ export default function RegistrationForm({
     async function loadSubjects() {
       try {
         setLoadingSubjects(true);
-        const list = await fetchSubjects(selectedUniversityId, selectedAcademicYearId);
+        const list = await fetchSubjects(
+          selectedUniversityId,
+          selectedAcademicYearId,
+          selectedSemesterId,
+          selectedModuleId
+        );
         setSubjects(list);
-        setValue("subjectIds", []); // Reset selection when university/year changes
+        setValue("subjectIds", []); // Reset selected subjects on module change
       } catch (err: unknown) {
         setFormError(err instanceof Error ? err.message : "تعذر تحميل المواد.");
       } finally {
@@ -124,7 +217,7 @@ export default function RegistrationForm({
     }
 
     loadSubjects();
-  }, [selectedUniversityId, selectedAcademicYearId, setValue]);
+  }, [selectedUniversityId, selectedAcademicYearId, selectedSemesterId, selectedModuleId, setValue]);
 
   const onSubmit = async (data: RegistrationFormData) => {
     if (submitting) return;
@@ -141,6 +234,8 @@ export default function RegistrationForm({
         country: data.country,
         university_id: data.universityId,
         academic_year_id: data.academicYearId,
+        semester_id: data.semesterId,
+        module_id: data.moduleId,
         subject_ids: data.subjectIds,
       });
 
@@ -179,6 +274,7 @@ export default function RegistrationForm({
     <form
       onSubmit={handleSubmit(onSubmit)}
       className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6"
+      dir="rtl"
     >
       {/* Form Header */}
       <div className="border-b border-slate-100 pb-5">
@@ -186,7 +282,7 @@ export default function RegistrationForm({
           تسجيل محاضرات VIP Academy
         </h2>
         <p className="text-xs text-slate-500 mt-1">
-          أكمل بياناتك واختر المواد المطلوبة
+          أكمل بياناتك واختر الموديول والمواد المطلوبة
         </p>
       </div>
 
@@ -350,7 +446,102 @@ export default function RegistrationForm({
         </div>
       </div>
 
-      {/* 7. Subjects Multi-select */}
+      {/* 7 & 8. Semester & Module Selects */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Semester Select */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700">
+            الترم الدراسي <span className="text-rose-500">*</span>
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400">
+              <CalendarDays className="w-4 h-4" />
+            </div>
+            <select
+              {...register("semesterId")}
+              disabled={!selectedAcademicYearId || loadingSemesters}
+              className={`w-full bg-white border rounded-xl pr-10 pl-4 py-3 text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${
+                errors.semesterId
+                  ? "border-rose-300 focus:ring-rose-500/20"
+                  : "border-slate-200 focus:border-blue-600 focus:ring-blue-500/20"
+              }`}
+            >
+              <option value="" disabled>
+                {!selectedAcademicYearId
+                  ? "اختر الفرقة أولاً..."
+                  : loadingSemesters
+                  ? "جاري تحميل الترمات..."
+                  : semesters.length === 0
+                  ? "لا توجد ترمات لهذه الفرقة"
+                  : "اختر الترم..."}
+              </option>
+              {semesters.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name_ar} {s.name_en ? `(${s.name_en})` : ""}
+                </option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+          {errors.semesterId && (
+            <p className="text-xs text-rose-600 font-medium">
+              {errors.semesterId.message}
+            </p>
+          )}
+        </div>
+
+        {/* Module Select */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-bold text-slate-700">
+            الموديول <span className="text-rose-500">*</span>
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400">
+              <Boxes className="w-4 h-4" />
+            </div>
+            <select
+              {...register("moduleId")}
+              disabled={!selectedSemesterId || loadingModules}
+              className={`w-full bg-white border rounded-xl pr-10 pl-4 py-3 text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed ${
+                errors.moduleId
+                  ? "border-rose-300 focus:ring-rose-500/20"
+                  : "border-slate-200 focus:border-blue-600 focus:ring-blue-500/20"
+              }`}
+            >
+              <option value="" disabled>
+                {!selectedSemesterId
+                  ? "اختر الترم أولاً..."
+                  : loadingModules
+                  ? "جاري تحميل الموديولات..."
+                  : modules.length === 0
+                  ? "لا توجد موديولات لهذا الترم"
+                  : "اختر الموديول..."}
+              </option>
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name_ar} {m.name_en ? `(${m.name_en})` : ""}
+                </option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+          {errors.moduleId && (
+            <p className="text-xs text-rose-600 font-medium">
+              {errors.moduleId.message}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* 9. Subjects Multi-select */}
       <Controller
         name="subjectIds"
         control={control}
@@ -360,7 +551,12 @@ export default function RegistrationForm({
             selectedSubjectIds={field.value}
             onChange={field.onChange}
             loading={loadingSubjects}
-            hasSelectionCriteria={Boolean(selectedUniversityId && selectedAcademicYearId)}
+            hasSelectionCriteria={Boolean(
+              selectedUniversityId &&
+              selectedAcademicYearId &&
+              selectedSemesterId &&
+              selectedModuleId
+            )}
             error={errors.subjectIds?.message}
           />
         )}

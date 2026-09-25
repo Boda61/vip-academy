@@ -14,6 +14,23 @@ export interface AcademicYearOption {
   year_order: number;
 }
 
+export interface SemesterOption {
+  id: string;
+  academic_year_id: string;
+  name_ar: string;
+  name_en: string | null;
+  semester_order: number;
+}
+
+export interface ModuleOption {
+  id: string;
+  semester_id: string;
+  name_ar: string;
+  name_en: string | null;
+  code: string | null;
+  module_order: number;
+}
+
 export interface SubjectOption {
   id: string;
   name_ar: string;
@@ -21,6 +38,8 @@ export interface SubjectOption {
   price: number;
   university_id: string;
   academic_year_id: string;
+  semester_id?: string | null;
+  module_id?: string | null;
 }
 
 export interface ClaimTokenResponse {
@@ -37,6 +56,8 @@ export interface SubmitRegistrationParams {
   country: string;
   university_id: string;
   academic_year_id: string;
+  semester_id?: string;
+  module_id?: string;
   subject_ids: string[];
 }
 
@@ -106,26 +127,78 @@ export async function fetchAcademicYears(): Promise<AcademicYearOption[]> {
 }
 
 /**
- * Fetches active subjects matching the selected university and academic year.
+ * Fetches active semesters for a given academic year.
+ */
+export async function fetchSemesters(academicYearId: string): Promise<SemesterOption[]> {
+  if (!academicYearId) return [];
+
+  const { data, error } = await supabase
+    .from("semesters")
+    .select("id, academic_year_id, name_ar, name_en, semester_order")
+    .eq("is_active", true)
+    .eq("academic_year_id", academicYearId)
+    .order("semester_order", { ascending: true });
+
+  if (error) {
+    throw new Error("تعذر تحميل قائمة الترمات من الخادم.");
+  }
+  return data || [];
+}
+
+/**
+ * Fetches active modules for a given semester.
+ */
+export async function fetchModules(semesterId: string): Promise<ModuleOption[]> {
+  if (!semesterId) return [];
+
+  const { data, error } = await supabase
+    .from("modules")
+    .select("id, semester_id, name_ar, name_en, code, module_order")
+    .eq("is_active", true)
+    .eq("semester_id", semesterId)
+    .order("module_order", { ascending: true });
+
+  if (error) {
+    throw new Error("تعذر تحميل قائمة الموديولات من الخادم.");
+  }
+  return data || [];
+}
+
+/**
+ * Fetches active subjects matching university, academic year, semester, and module.
  */
 export async function fetchSubjects(
   universityId: string,
-  academicYearId: string
+  academicYearId: string,
+  semesterId?: string,
+  moduleId?: string
 ): Promise<SubjectOption[]> {
   if (!universityId || !academicYearId) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("subjects")
-    .select("id, name_ar, name_en, price, university_id, academic_year_id")
+    .select("id, name_ar, name_en, price, university_id, academic_year_id, semester_id, module_id")
     .eq("is_active", true)
     .eq("university_id", universityId)
-    .eq("academic_year_id", academicYearId)
-    .order("name_ar");
+    .eq("academic_year_id", academicYearId);
+
+  if (semesterId) {
+    query = query.eq("semester_id", semesterId);
+  }
+  if (moduleId) {
+    query = query.eq("module_id", moduleId);
+  }
+
+  const { data, error } = await query.order("name_ar");
 
   if (error) {
     throw new Error("تعذر تحميل المواد الدراسية.");
   }
-  return data || [];
+
+  return (data || []).map((row) => ({
+    ...row,
+    price: Number(row.price),
+  }));
 }
 
 /**
@@ -143,6 +216,8 @@ export async function submitRegistration(
     p_university_id: params.university_id,
     p_academic_year_id: params.academic_year_id,
     p_subject_ids: params.subject_ids,
+    p_semester_id: params.semester_id || null,
+    p_module_id: params.module_id || null,
   });
 
   if (error) {
@@ -153,7 +228,7 @@ export async function submitRegistration(
       throw new Error("انتهت صلاحية جلسة التسجيل، يرجى إعادة مسح الرمز من الشاشة.");
     }
     if (error.message.includes("P0014") || error.message.includes("المواد")) {
-      throw new Error("بعض المواد المختارة غير صالحة أو لا تنتمي لنفس الجامعة والفرقة.");
+      throw new Error("بعض المواد المختارة غير صالحة أو لا تنتمي لنفس الجامعة والفرقة والموديول.");
     }
     throw new Error(error.message || "حدث خطأ أثناء حفظ التسجيل.");
   }

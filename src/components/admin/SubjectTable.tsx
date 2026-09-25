@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { AdminSubject } from "@/types";
+import { AdminSubject, AdminSemester, AdminModule } from "@/types";
 import { UniversityOption, AcademicYearOption } from "@/services/registrationService";
 import { toggleSubjectActive, deleteSubject } from "@/services/adminService";
 import { formatCurrency } from "@/utils";
@@ -16,6 +16,8 @@ import {
   XCircle,
   Building2,
   GraduationCap,
+  CalendarDays,
+  Boxes,
   Loader2,
   RefreshCw,
   Power,
@@ -26,6 +28,8 @@ interface SubjectTableProps {
   subjects: AdminSubject[];
   universities: UniversityOption[];
   academicYears: AcademicYearOption[];
+  semesters?: AdminSemester[];
+  modules?: AdminModule[];
   onRefresh: (successMsg?: string) => void;
   loading?: boolean;
 }
@@ -34,12 +38,16 @@ export default function SubjectTable({
   subjects,
   universities,
   academicYears,
+  semesters = [],
+  modules = [],
   onRefresh,
   loading = false,
 }: SubjectTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUniversityId, setSelectedUniversityId] = useState<string>("ALL");
   const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<string>("ALL");
+  const [selectedSemesterId, setSelectedSemesterId] = useState<string>("ALL");
+  const [selectedModuleId, setSelectedModuleId] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
 
   // Modal State
@@ -51,6 +59,18 @@ export default function SubjectTable({
   // Delete State
   const [deletingSubject, setDeletingSubject] = useState<AdminSubject | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Filtered Semesters based on selected Academic Year
+  const availableSemesters = useMemo(() => {
+    if (selectedAcademicYearId === "ALL") return semesters;
+    return semesters.filter((s) => s.academic_year_id === selectedAcademicYearId);
+  }, [selectedAcademicYearId, semesters]);
+
+  // Filtered Modules based on selected Semester
+  const availableModules = useMemo(() => {
+    if (selectedSemesterId === "ALL") return modules;
+    return modules.filter((m) => m.semester_id === selectedSemesterId);
+  }, [selectedSemesterId, modules]);
 
   // Filtered Subjects
   const filteredSubjects = useMemo(() => {
@@ -73,13 +93,31 @@ export default function SubjectTable({
         return false;
       }
 
+      // Semester
+      if (selectedSemesterId !== "ALL" && subject.semester_id !== selectedSemesterId) {
+        return false;
+      }
+
+      // Module
+      if (selectedModuleId !== "ALL" && subject.module_id !== selectedModuleId) {
+        return false;
+      }
+
       // Status
       if (selectedStatus === "ACTIVE" && !subject.is_active) return false;
       if (selectedStatus === "INACTIVE" && subject.is_active) return false;
 
       return true;
     });
-  }, [subjects, searchTerm, selectedUniversityId, selectedAcademicYearId, selectedStatus]);
+  }, [
+    subjects,
+    searchTerm,
+    selectedUniversityId,
+    selectedAcademicYearId,
+    selectedSemesterId,
+    selectedModuleId,
+    selectedStatus,
+  ]);
 
   const handleEditClick = (subject: AdminSubject) => {
     setEditingSubject(subject);
@@ -125,6 +163,8 @@ export default function SubjectTable({
     setSearchTerm("");
     setSelectedUniversityId("ALL");
     setSelectedAcademicYearId("ALL");
+    setSelectedSemesterId("ALL");
+    setSelectedModuleId("ALL");
     setSelectedStatus("ALL");
   };
 
@@ -132,10 +172,12 @@ export default function SubjectTable({
     searchTerm !== "" ||
     selectedUniversityId !== "ALL" ||
     selectedAcademicYearId !== "ALL" ||
+    selectedSemesterId !== "ALL" ||
+    selectedModuleId !== "ALL" ||
     selectedStatus !== "ALL";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       {actionError && (
         <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs flex items-center justify-between animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
@@ -152,7 +194,7 @@ export default function SubjectTable({
       )}
 
       {/* Search & Filters Card */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-4">
+      <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1">
@@ -162,7 +204,7 @@ export default function SubjectTable({
               placeholder="بحث باسم المادة بالعربية أو الإنجليزية..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pr-10 pl-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full pr-10 pl-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all"
             />
           </div>
 
@@ -179,7 +221,7 @@ export default function SubjectTable({
             <button
               onClick={() => onRefresh()}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-50 border border-indigo-100 transition-colors cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-50 border border-indigo-100 transition-colors cursor-pointer disabled:opacity-50"
               title="تحديث البيانات"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -189,17 +231,17 @@ export default function SubjectTable({
         </div>
 
         {/* Filter Dropdowns Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-3 border-t border-slate-100 text-xs">
           {/* University Filter */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1">
               <Building2 className="w-3.5 h-3.5" />
-              <span>تصفية بالجامعة</span>
+              <span>الجامعة</span>
             </label>
             <select
               value={selectedUniversityId}
               onChange={(e) => setSelectedUniversityId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
             >
               <option value="ALL">جميع الجامعات</option>
               {universities.map((uni) => (
@@ -214,17 +256,64 @@ export default function SubjectTable({
           <div>
             <label className="block text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1">
               <GraduationCap className="w-3.5 h-3.5" />
-              <span>تصفية بالفرقة</span>
+              <span>الفرقة الدراسية</span>
             </label>
             <select
               value={selectedAcademicYearId}
-              onChange={(e) => setSelectedAcademicYearId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+              onChange={(e) => {
+                setSelectedAcademicYearId(e.target.value);
+                setSelectedSemesterId("ALL");
+                setSelectedModuleId("ALL");
+              }}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
             >
-              <option value="ALL">جميع الفرق الدراسية</option>
+              <option value="ALL">جميع الفرق</option>
               {academicYears.map((year) => (
                 <option key={year.id} value={year.id}>
                   {year.name_ar}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Semester Filter */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1">
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>الترم</span>
+            </label>
+            <select
+              value={selectedSemesterId}
+              onChange={(e) => {
+                setSelectedSemesterId(e.target.value);
+                setSelectedModuleId("ALL");
+              }}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
+            >
+              <option value="ALL">جميع الترمات</option>
+              {availableSemesters.map((sem) => (
+                <option key={sem.id} value={sem.id}>
+                  {sem.name_ar}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Module Filter */}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1">
+              <Boxes className="w-3.5 h-3.5" />
+              <span>الموديول</span>
+            </label>
+            <select
+              value={selectedModuleId}
+              onChange={(e) => setSelectedModuleId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
+            >
+              <option value="ALL">جميع الموديولات</option>
+              {availableModules.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name_ar}
                 </option>
               ))}
             </select>
@@ -234,16 +323,16 @@ export default function SubjectTable({
           <div>
             <label className="block text-[11px] font-bold text-slate-500 mb-1 flex items-center gap-1">
               <Filter className="w-3.5 h-3.5" />
-              <span>حالة المادة</span>
+              <span>الحالة</span>
             </label>
             <select
               value={selectedStatus}
               onChange={(e) =>
                 setSelectedStatus(e.target.value as "ALL" | "ACTIVE" | "INACTIVE")
               }
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 font-medium text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all cursor-pointer"
             >
-              <option value="ALL">الكل (المفعلة والمعطلة)</option>
+              <option value="ALL">الكل</option>
               <option value="ACTIVE">المفعلة فقط</option>
               <option value="INACTIVE">المعطلة فقط</option>
             </select>
@@ -262,14 +351,14 @@ export default function SubjectTable({
       </div>
 
       {/* Table Container */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-right border-collapse">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/75 text-[11px] font-bold text-slate-500 uppercase">
                 <th className="py-3.5 px-5">اسم المادة</th>
-                <th className="py-3.5 px-5">الجامعة</th>
-                <th className="py-3.5 px-5">الفرقة</th>
+                <th className="py-3.5 px-5">الجامعة والفرقة</th>
+                <th className="py-3.5 px-5">الترم والموديول</th>
                 <th className="py-3.5 px-5">السعر</th>
                 <th className="py-3.5 px-5">الحالة</th>
                 <th className="py-3.5 px-5 text-center">الإجراءات</th>
@@ -292,7 +381,7 @@ export default function SubjectTable({
                       <Filter className="w-8 h-8 text-slate-300" />
                       <p className="font-bold text-slate-600">لا توجد مواد مطابقة للبحث</p>
                       <p className="text-[11px]">
-                        جرب تعديل كلمات البحث أو اختيار جامعة أو فرقة أخرى.
+                        جرب تعديل فلاتر البحث أو اختيار ترم أو موديول آخر.
                       </p>
                     </div>
                   </td>
@@ -317,19 +406,36 @@ export default function SubjectTable({
                         )}
                       </td>
 
-                      {/* University */}
+                      {/* University and Academic Year */}
                       <td className="py-3.5 px-5 text-slate-600">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{subject.universities?.name_ar || "—"}</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="font-bold text-slate-800">{subject.universities?.name_ar || "—"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                            <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{subject.academic_years?.name_ar || "—"}</span>
+                          </div>
                         </div>
                       </td>
 
-                      {/* Academic Year */}
-                      <td className="py-3.5 px-5 text-slate-600">
-                        <div className="flex items-center gap-1.5">
-                          <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{subject.academic_years?.name_ar || "—"}</span>
+                      {/* Semester and Module */}
+                      <td className="py-3.5 px-5">
+                        <div className="space-y-1">
+                          {subject.modules ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              <Boxes className="w-3 h-3 text-indigo-500" />
+                              <span>{subject.modules.name_ar}</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-[11px]">بدون موديول</span>
+                          )}
+                          {subject.semesters && (
+                            <div className="text-[11px] text-slate-400">
+                              {subject.semesters.name_ar}
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -409,6 +515,8 @@ export default function SubjectTable({
           subject={editingSubject}
           universities={universities}
           academicYears={academicYears}
+          semesters={semesters}
+          modules={modules}
           isOpen={isEditModalOpen}
           onClose={() => {
             setIsEditModalOpen(false);

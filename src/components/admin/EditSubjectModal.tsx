@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { AdminSubject } from "@/types";
+import { useState, useMemo } from "react";
+import { AdminSubject, AdminSemester, AdminModule } from "@/types";
 import { UniversityOption, AcademicYearOption } from "@/services/registrationService";
 import { updateSubject } from "@/services/adminService";
-import { X, Loader2, AlertCircle, Info, BookOpen } from "lucide-react";
+import { X, Loader2, AlertCircle, BookOpen } from "lucide-react";
 
 interface EditSubjectModalProps {
   subject: AdminSubject | null;
   universities: UniversityOption[];
   academicYears: AcademicYearOption[];
+  semesters?: AdminSemester[];
+  modules?: AdminModule[];
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -19,12 +21,16 @@ export default function EditSubjectModal({
   subject,
   universities,
   academicYears,
+  semesters = [],
+  modules = [],
   isOpen,
   onClose,
   onSuccess,
 }: EditSubjectModalProps) {
   const [universityId, setUniversityId] = useState("");
   const [academicYearId, setAcademicYearId] = useState("");
+  const [semesterId, setSemesterId] = useState("");
+  const [moduleId, setModuleId] = useState("");
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [price, setPrice] = useState("");
@@ -32,7 +38,7 @@ export default function EditSubjectModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync state cleanly when subject or isOpen changes (no useEffect setState)
+  // Sync state cleanly when subject changes
   const currentSubjectId = subject?.id;
   const [prevSubjectId, setPrevSubjectId] = useState<string | undefined>(undefined);
 
@@ -41,6 +47,8 @@ export default function EditSubjectModal({
     if (subject) {
       setUniversityId(subject.university_id || universities[0]?.id || "");
       setAcademicYearId(subject.academic_year_id || academicYears[0]?.id || "");
+      setSemesterId(subject.semester_id || "");
+      setModuleId(subject.module_id || "");
       setNameAr(subject.name_ar || "");
       setNameEn(subject.name_en || "");
       setPrice(subject.price.toString());
@@ -48,6 +56,31 @@ export default function EditSubjectModal({
       setError(null);
     }
   }
+
+  // Filtered Semesters for the selected Academic Year
+  const availableSemesters = useMemo(() => {
+    if (!academicYearId) return [];
+    return semesters.filter((s) => s.academic_year_id === academicYearId && s.is_active);
+  }, [academicYearId, semesters]);
+
+  // Filtered Modules for the selected Semester
+  const availableModules = useMemo(() => {
+    if (!semesterId) return [];
+    return modules.filter((m) => m.semester_id === semesterId && m.is_active);
+  }, [semesterId, modules]);
+
+  // Reset semester and module when academic year changes
+  const handleAcademicYearChange = (newYearId: string) => {
+    setAcademicYearId(newYearId);
+    setSemesterId("");
+    setModuleId("");
+  };
+
+  // Reset module when semester changes
+  const handleSemesterChange = (newSemesterId: string) => {
+    setSemesterId(newSemesterId);
+    setModuleId("");
+  };
 
   if (!isOpen || !subject) return null;
 
@@ -82,6 +115,8 @@ export default function EditSubjectModal({
       await updateSubject(subject.id, {
         university_id: universityId,
         academic_year_id: academicYearId,
+        semester_id: semesterId || null,
+        module_id: moduleId || null,
         name_ar: nameAr.trim(),
         name_en: nameEn.trim() || null,
         price: numPrice,
@@ -115,7 +150,7 @@ export default function EditSubjectModal({
                 تعديل بيانات وسعر المادة
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                تعديل الجامعة، الفرقة، الاسم، السعر، وحالة التفعيل
+                تعديل الجامعة، الفرقة، الترم، الموديول، السعر، وحالة التفعيل
               </p>
             </div>
           </div>
@@ -163,7 +198,7 @@ export default function EditSubjectModal({
                 </label>
                 <select
                   value={academicYearId}
-                  onChange={(e) => setAcademicYearId(e.target.value)}
+                  onChange={(e) => handleAcademicYearChange(e.target.value)}
                   required
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
                 >
@@ -176,38 +211,75 @@ export default function EditSubjectModal({
               </div>
             </div>
 
-            {/* Price Field - Highlighted */}
-            <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-2">
-              <label className="block text-xs font-black text-indigo-800">
-                سعر المادة (جنيه مصري) <span className="text-rose-500">*</span>
+            {/* Semester and Module (Cascading) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  الترم الدراسي (اختياري)
+                </label>
+                <select
+                  value={semesterId}
+                  onChange={(e) => handleSemesterChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+                >
+                  <option value="">-- بدون ترم محدد --</option>
+                  {availableSemesters.map((sem) => (
+                    <option key={sem.id} value={sem.id}>
+                      {sem.name_ar}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  الموديول (اختياري)
+                </label>
+                <select
+                  value={moduleId}
+                  onChange={(e) => setModuleId(e.target.value)}
+                  disabled={!semesterId || availableModules.length === 0}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer disabled:opacity-60"
+                >
+                  <option value="">
+                    {!semesterId
+                      ? "-- اختر الترم أولاً --"
+                      : availableModules.length === 0
+                      ? "-- لا توجد موديولات لهذا الترم --"
+                      : "-- بدون موديول محدد --"}
+                  </option>
+                  {availableModules.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name_ar}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Price Edit Box */}
+            <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100">
+              <label className="block text-xs font-black text-indigo-900 mb-1.5">
+                سعر المادة (EGP) <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
                 <input
                   type="number"
-                  step="any"
                   min="0"
+                  step="0.5"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-white border border-indigo-200 text-slate-900 font-black text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-left transition-all"
-                  dir="ltr"
                   placeholder="0.00"
+                  required
+                  className="w-full pl-12 pr-4 py-2.5 rounded-xl bg-white border border-indigo-200 text-slate-900 font-black text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-600 transition-all"
                 />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
-                  EGP
-                </span>
-              </div>
-
-              {/* Price Notice Alert */}
-              <div className="flex items-start gap-2 pt-1 text-[11px] text-indigo-700 leading-relaxed">
-                <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                <span>
-                  سيتم تطبيق السعر الجديد فوراً على التسجيلات الجديدة، بينما تظل أسعار التسجيلات السابقة محفوظة كما كانت.
-                </span>
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-xs font-bold text-indigo-600">
+                  ج.م
+                </div>
               </div>
             </div>
 
-            {/* Name Arabic */}
+            {/* Arabic Name */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 اسم المادة (بالعربية) <span className="text-rose-500">*</span>
@@ -217,11 +289,11 @@ export default function EditSubjectModal({
                 value={nameAr}
                 onChange={(e) => setNameAr(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               />
             </div>
 
-            {/* Name English */}
+            {/* English Name */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 اسم المادة (بالإنجليزية - اختياري)
@@ -231,18 +303,16 @@ export default function EditSubjectModal({
                 value={nameEn}
                 onChange={(e) => setNameEn(e.target.value)}
                 dir="ltr"
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-left"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-left"
               />
             </div>
 
-            {/* Active Status Switch */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+            {/* Active Status Toggle */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-50 border border-slate-200/60">
               <div>
-                <p className="text-xs font-bold text-slate-800">
-                  حالة تفعيل المادة
-                </p>
+                <p className="text-xs font-bold text-slate-900">حالة التفعيل</p>
                 <p className="text-[11px] text-slate-400">
-                  المواد المفعلة فقط هي التي تظهر للطلاب في استمارة التسجيل
+                  عند التعطيل لن تظهر المادة للطلاب في الاستمارة
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -252,17 +322,17 @@ export default function EditSubjectModal({
                   onChange={(e) => setIsActive(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
               </label>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 إلغاء
               </button>

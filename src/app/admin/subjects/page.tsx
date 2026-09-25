@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { AdminSubject } from "@/types";
+import { AdminSubject, AdminSemester, AdminModule } from "@/types";
 import {
   UniversityOption,
   AcademicYearOption,
   fetchUniversities,
   fetchAcademicYears,
 } from "@/services/registrationService";
-import { fetchAdminSubjects } from "@/services/adminService";
+import {
+  fetchAdminSubjects,
+  fetchAdminSemesters,
+  fetchAdminModules,
+} from "@/services/adminService";
 import SubjectTable from "@/components/admin/SubjectTable";
 import AddSubjectModal from "@/components/admin/AddSubjectModal";
 import { BookOpen, Plus, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -17,6 +21,8 @@ export default function AdminSubjectsPage() {
   const [subjects, setSubjects] = useState<AdminSubject[]>([]);
   const [universities, setUniversities] = useState<UniversityOption[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYearOption[]>([]);
+  const [semesters, setSemesters] = useState<AdminSemester[]>([]);
+  const [modules, setModules] = useState<AdminModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -28,15 +34,19 @@ export default function AdminSubjectsPage() {
     }
     setError(null);
     try {
-      const [subjectsList, unisList, yearsList] = await Promise.all([
+      const [subjectsList, unisList, yearsList, semList, modList] = await Promise.all([
         fetchAdminSubjects(),
         fetchUniversities(),
         fetchAcademicYears(),
+        fetchAdminSemesters(),
+        fetchAdminModules(),
       ]);
 
       setSubjects(subjectsList);
       setUniversities(unisList);
       setAcademicYears(yearsList);
+      setSemesters(semList);
+      setModules(modList);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "فشل تحميل قائمة المواد الدراسية.");
     } finally {
@@ -48,15 +58,19 @@ export default function AdminSubjectsPage() {
     let active = true;
     async function init() {
       try {
-        const [subjectsList, unisList, yearsList] = await Promise.all([
+        const [subjectsList, unisList, yearsList, semList, modList] = await Promise.all([
           fetchAdminSubjects(),
           fetchUniversities(),
           fetchAcademicYears(),
+          fetchAdminSemesters(),
+          fetchAdminModules(),
         ]);
         if (active) {
           setSubjects(subjectsList);
           setUniversities(unisList);
           setAcademicYears(yearsList);
+          setSemesters(semList);
+          setModules(modList);
         }
       } catch (err: unknown) {
         if (active) {
@@ -82,7 +96,7 @@ export default function AdminSubjectsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
@@ -95,7 +109,7 @@ export default function AdminSubjectsPage() {
             </h1>
           </div>
           <p className="text-xs text-slate-500">
-            تحديث أسعار المواد، تفعيلها أو تعطيلها، وإضافة مواد جديدة للجامعات والفرق
+            تحديث أسعار المواد، ربطها بالموديولات والترمات، تفعيلها أو تعطيلها، وإضافة مواد جديدة
           </p>
         </div>
 
@@ -142,6 +156,8 @@ export default function AdminSubjectsPage() {
         subjects={subjects}
         universities={universities}
         academicYears={academicYears}
+        semesters={semesters}
+        modules={modules}
         loading={loading}
         onRefresh={(msg) => {
           loadData();
@@ -155,9 +171,11 @@ export default function AdminSubjectsPage() {
         onClose={() => setIsAddModalOpen(false)}
         universities={universities}
         academicYears={academicYears}
+        semesters={semesters}
+        modules={modules}
         onSuccess={() => {
           loadData();
-          showSuccessNotification("تمت إضافة المادة الجديدة بنجاح.");
+          showSuccessNotification("تمت إضافة المادة بنجاح.");
         }}
       />
     </div>

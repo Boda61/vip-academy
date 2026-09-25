@@ -83,6 +83,64 @@ export interface AcademicYearMutationInput {
   is_active?: boolean;
 }
 
+export interface AdminSemester {
+  id: string;
+  academic_year_id: string;
+  name_ar: string;
+  name_en: string | null;
+  semester_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  academic_years?: {
+    id: string;
+    name_ar: string;
+    name_en: string;
+    year_order: number;
+  };
+}
+
+export interface SemesterMutationInput {
+  academic_year_id: string;
+  name_ar: string;
+  name_en?: string | null;
+  semester_order: number;
+  is_active?: boolean;
+}
+
+export interface AdminModule {
+  id: string;
+  semester_id: string;
+  name_ar: string;
+  name_en: string | null;
+  code: string | null;
+  module_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  semesters?: {
+    id: string;
+    name_ar: string;
+    name_en: string | null;
+    academic_year_id: string;
+    academic_years?: {
+      id: string;
+      name_ar: string;
+      name_en: string;
+      year_order: number;
+    };
+  };
+}
+
+export interface ModuleMutationInput {
+  semester_id: string;
+  name_ar: string;
+  name_en?: string | null;
+  code?: string | null;
+  module_order: number;
+  is_active?: boolean;
+}
+
 export interface AdminSubject {
   id: string;
   name_ar: string;
@@ -91,6 +149,8 @@ export interface AdminSubject {
   is_active: boolean;
   university_id: string;
   academic_year_id: string;
+  semester_id?: string | null;
+  module_id?: string | null;
   created_at?: string;
   updated_at?: string;
   universities?: {
@@ -105,6 +165,17 @@ export interface AdminSubject {
     name_en: string;
     year_order: number;
   };
+  semesters?: {
+    id: string;
+    name_ar: string;
+    name_en: string | null;
+  } | null;
+  modules?: {
+    id: string;
+    name_ar: string;
+    name_en: string | null;
+    code: string | null;
+  } | null;
 }
 
 export interface SubjectMutationInput {
@@ -113,6 +184,8 @@ export interface SubjectMutationInput {
   price: number;
   university_id: string;
   academic_year_id: string;
+  semester_id?: string | null;
+  module_id?: string | null;
   is_active?: boolean;
 }
 
@@ -124,6 +197,10 @@ export interface AdminStats {
   activeUniversities: number;
   totalAcademicYears: number;
   activeAcademicYears: number;
+  totalSemesters?: number;
+  activeSemesters?: number;
+  totalModules?: number;
+  activeModules?: number;
 }
 
 export interface RegistrationTrendItem {

@@ -12,6 +12,8 @@ import {
   XCircle,
   Building2,
   GraduationCap,
+  CalendarDays,
+  Boxes,
   ArrowLeft,
   Sparkles,
   Users,
@@ -89,7 +91,7 @@ export default function AdminDashboardPage() {
               مرحباً بك في لوحة تحكم VIP Academy
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              إدارة شاملة لطلبات التسجيل، الجامعات الشريكة، الفرق الدراسية، والمواد والأسعار مع متابعة مؤشرات النشاط اللحظية.
+              إدارة شاملة لطلبات التسجيل، الجامعات الشريكة، الفرق الدراسية، الترمات، الموديولات، والمواد والأسعار مع متابعة مؤشرات النشاط اللحظية.
             </p>
           </div>
 
@@ -130,6 +132,20 @@ export default function AdminDashboardPage() {
           >
             <GraduationCap className="w-3.5 h-3.5 text-slate-500" />
             <span>الفرق الدراسية</span>
+          </Link>
+          <Link
+            href="/admin/semesters"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200/60 transition-all cursor-pointer"
+          >
+            <CalendarDays className="w-3.5 h-3.5 text-slate-500" />
+            <span>الترمات</span>
+          </Link>
+          <Link
+            href="/admin/modules"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200/60 transition-all cursor-pointer"
+          >
+            <Boxes className="w-3.5 h-3.5 text-slate-500" />
+            <span>الموديولات</span>
           </Link>
           <Link
             href="/admin/subjects"
