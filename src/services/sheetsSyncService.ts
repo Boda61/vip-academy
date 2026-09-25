@@ -149,10 +149,25 @@ export async function syncRegistrationToSheets(
       };
     }
 
-    // 5. Fetch snapshot items
+    // 5. Fetch snapshot items with joined subject and module info
     const { data: items, error: itemsError } = await supabaseAdmin
       .from("registration_items")
-      .select("subject_name_snapshot, unit_price_snapshot")
+      .select(`
+        subject_name_snapshot,
+        unit_price_snapshot,
+        subject_id,
+        subjects (
+          id,
+          name_ar,
+          module_id,
+          modules (
+            id,
+            name_ar,
+            name_en,
+            module_order
+          )
+        )
+      `)
       .eq("registration_id", registrationId);
 
     if (itemsError) {
@@ -176,17 +191,78 @@ export async function syncRegistrationToSheets(
         ?.name_en ||
       "غير محدد";
 
-    // 7. Format registered subjects snapshot list
+    // 7. Format registered subjects grouped by module (Column H)
+    // Structure: Module 1 - Subject A, Subject B | Module 2 - Subject C
+    interface ModuleGroup {
+      moduleId: string;
+      moduleName: string;
+      moduleOrder: number;
+      subjects: string[];
+    }
+
+    const groupsMap = new Map<string, ModuleGroup>();
+    const legacyItems: string[] = [];
+
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const subjectObj = item.subjects as {
+          id?: string;
+          name_ar?: string;
+          module_id?: string | null;
+          modules?: {
+            id?: string;
+            name_ar?: string;
+            name_en?: string;
+            module_order?: number;
+          } | {
+            id?: string;
+            name_ar?: string;
+            name_en?: string;
+            module_order?: number;
+          }[] | null;
+        } | null;
+
+        const rawModule = subjectObj?.modules;
+        const moduleData = Array.isArray(rawModule) ? rawModule[0] : rawModule;
+        const moduleId = subjectObj?.module_id || moduleData?.id;
+
+        if (moduleId && moduleData) {
+          const moduleName = moduleData.name_ar || moduleData.name_en || "موديول";
+          const moduleOrder =
+            typeof moduleData.module_order === "number" ? moduleData.module_order : 999;
+
+          if (!groupsMap.has(moduleId)) {
+            groupsMap.set(moduleId, {
+              moduleId,
+              moduleName,
+              moduleOrder,
+              subjects: [],
+            });
+          }
+          groupsMap.get(moduleId)!.subjects.push(item.subject_name_snapshot);
+        } else {
+          // Legacy subject without module (preserve snapshot text)
+          legacyItems.push(item.subject_name_snapshot);
+        }
+      }
+    }
+
+    // Sort module groups by module_order ascending
+    const sortedGroups = Array.from(groupsMap.values()).sort(
+      (a, b) => a.moduleOrder - b.moduleOrder
+    );
+
+    const formattedModuleStrings = sortedGroups.map(
+      (g) => `${g.moduleName} - ${g.subjects.join(", ")}`
+    );
+
+    if (legacyItems.length > 0) {
+      formattedModuleStrings.push(legacyItems.join(", "));
+    }
+
     const registeredSubjectsFormatted =
-      items && items.length > 0
-        ? items
-            .map(
-              (item) =>
-                `${item.subject_name_snapshot} (${Number(
-                  item.unit_price_snapshot
-                ).toFixed(2)} EGP)`
-            )
-            .join(", ")
+      formattedModuleStrings.length > 0
+        ? formattedModuleStrings.join(" | ")
         : "لا توجد مواد";
 
     const formattedDate = registration.created_at
