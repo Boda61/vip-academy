@@ -43,7 +43,7 @@ export default function PhoneInput({
 
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+      <label className="block text-xs font-bold text-slate-700">
         {label} <span className="text-rose-500">*</span>
       </label>
       <div className="flex gap-2" dir="ltr">
@@ -52,7 +52,7 @@ export default function PhoneInput({
           <select
             value={selectedCountry.code}
             onChange={(e) => handleCountryChange(e.target.value)}
-            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-3 py-3 text-sm text-slate-900 dark:text-white appearance-none cursor-pointer focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 truncate"
+            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 truncate"
           >
             {COUNTRIES_LIST.filter((c) => c.dialCode).map((c) => (
               <option key={c.code} value={c.code}>
@@ -71,9 +71,9 @@ export default function PhoneInput({
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
             {isWhatsApp ? (
-              <MessageSquare className="w-4 h-4 text-emerald-500" />
+              <MessageSquare className="w-4 h-4 text-emerald-600" />
             ) : (
-              <Phone className="w-4 h-4 text-amber-500" />
+              <Phone className="w-4 h-4 text-blue-600" />
             )}
           </div>
           <input
@@ -81,15 +81,15 @@ export default function PhoneInput({
             value={nationalNumber}
             onChange={(e) => handleNumberChange(e.target.value)}
             placeholder="010XXXXXXXX"
-            className={`w-full bg-white dark:bg-slate-900 border rounded-2xl pl-10 pr-4 py-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 ${
+            className={`w-full bg-white border rounded-xl pl-10 pr-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 ${
               error
-                ? "border-rose-300 dark:border-rose-800 focus:ring-rose-500/20"
-                : "border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:ring-amber-500/20"
+                ? "border-rose-300 focus:ring-rose-500/20"
+                : "border-slate-200 focus:border-blue-600 focus:ring-blue-500/20"
             }`}
           />
         </div>
       </div>
-      {error && <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">{error}</p>}
+      {error && <p className="text-xs text-rose-600 font-medium">{error}</p>}
     </div>
   );
 }

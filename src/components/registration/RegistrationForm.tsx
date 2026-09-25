@@ -178,20 +178,20 @@ export default function RegistrationForm({
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl space-y-6"
+      className="w-full max-w-2xl bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6"
     >
       {/* Form Header */}
-      <div className="border-b border-slate-100 dark:border-slate-800 pb-5">
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-          استمارة تسجيل الطالب
+      <div className="border-b border-slate-100 pb-5">
+        <h2 className="text-xl font-bold text-slate-900">
+          تسجيل محاضرات VIP Academy
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          يرجى إدخال البيانات بدقة للاشتراك في المواد والمحاضرات للعام الجامعي الحالي.
+        <p className="text-xs text-slate-500 mt-1">
+          أكمل بياناتك واختر المواد المطلوبة
         </p>
       </div>
 
       {formError && (
-        <div className="flex items-center gap-2.5 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-medium">
+        <div className="flex items-center gap-2.5 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
           <AlertTriangle className="w-5 h-5 shrink-0 text-rose-500" />
           <span>{formError}</span>
         </div>
@@ -199,7 +199,7 @@ export default function RegistrationForm({
 
       {/* 1. Full Name */}
       <div className="space-y-1.5">
-        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+        <label className="block text-xs font-bold text-slate-700">
           اسم الطالب بالكامل <span className="text-rose-500">*</span>
         </label>
         <div className="relative">
@@ -210,15 +210,15 @@ export default function RegistrationForm({
             type="text"
             {...register("fullName")}
             placeholder="مثال: أحمد محمد علي حسن"
-            className={`w-full bg-white dark:bg-slate-900 border rounded-2xl pr-10 pl-4 py-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 ${
+            className={`w-full bg-white border rounded-xl pr-10 pl-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 ${
               errors.fullName
-                ? "border-rose-300 dark:border-rose-800 focus:ring-rose-500/20"
-                : "border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:ring-amber-500/20"
+                ? "border-rose-300 focus:ring-rose-500/20"
+                : "border-slate-200 focus:border-blue-600 focus:ring-blue-500/20"
             }`}
           />
         </div>
         {errors.fullName && (
-          <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">
+          <p className="text-xs text-rose-600 font-medium">
             {errors.fullName.message}
           </p>
         )}
@@ -271,7 +271,7 @@ export default function RegistrationForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* University Select */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+          <label className="block text-xs font-bold text-slate-700">
             الجامعة <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
@@ -281,10 +281,10 @@ export default function RegistrationForm({
             <select
               {...register("universityId")}
               disabled={loadingCatalog}
-              className={`w-full bg-white dark:bg-slate-900 border rounded-2xl pr-10 pl-4 py-3 text-sm text-slate-900 dark:text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 ${
+              className={`w-full bg-white border rounded-xl pr-10 pl-4 py-3 text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 ${
                 errors.universityId
-                  ? "border-rose-300 dark:border-rose-800 focus:ring-rose-500/20"
-                  : "border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:ring-amber-500/20"
+                  ? "border-rose-300 focus:ring-rose-500/20"
+                  : "border-slate-200 focus:border-blue-600 focus:ring-blue-500/20"
               }`}
             >
               <option value="" disabled>
@@ -303,7 +303,7 @@ export default function RegistrationForm({
             </div>
           </div>
           {errors.universityId && (
-            <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">
+            <p className="text-xs text-rose-600 font-medium">
               {errors.universityId.message}
             </p>
           )}
@@ -311,7 +311,7 @@ export default function RegistrationForm({
 
         {/* Academic Year Select */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+          <label className="block text-xs font-bold text-slate-700">
             الفرقة الدراسية <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
@@ -321,10 +321,10 @@ export default function RegistrationForm({
             <select
               {...register("academicYearId")}
               disabled={loadingCatalog}
-              className={`w-full bg-white dark:bg-slate-900 border rounded-2xl pr-10 pl-4 py-3 text-sm text-slate-900 dark:text-white appearance-none cursor-pointer focus:outline-none focus:ring-2 ${
+              className={`w-full bg-white border rounded-xl pr-10 pl-4 py-3 text-sm text-slate-900 appearance-none cursor-pointer focus:outline-none focus:ring-2 ${
                 errors.academicYearId
-                  ? "border-rose-300 dark:border-rose-800 focus:ring-rose-500/20"
-                  : "border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:ring-amber-500/20"
+                  ? "border-rose-300 focus:ring-rose-500/20"
+                  : "border-slate-200 focus:border-blue-600 focus:ring-blue-500/20"
               }`}
             >
               <option value="" disabled>
@@ -343,7 +343,7 @@ export default function RegistrationForm({
             </div>
           </div>
           {errors.academicYearId && (
-            <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">
+            <p className="text-xs text-rose-600 font-medium">
               {errors.academicYearId.message}
             </p>
           )}
@@ -367,11 +367,11 @@ export default function RegistrationForm({
       />
 
       {/* Submit Button */}
-      <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+      <div className="pt-4 border-t border-slate-100">
         <button
           type="submit"
           disabled={submitting || loadingCatalog}
-          className="w-full bg-gradient-to-r from-amber-500 via-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-extrabold py-3.5 px-6 rounded-2xl text-sm transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl text-sm transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {submitting ? (
             <>
@@ -381,7 +381,7 @@ export default function RegistrationForm({
           ) : (
             <>
               <Send className="w-4 h-4" />
-              <span>تأكيد وإرسال طلب التسجيل</span>
+              <span>تأكيد التسجيل</span>
             </>
           )}
         </button>

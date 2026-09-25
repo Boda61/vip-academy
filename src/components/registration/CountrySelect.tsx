@@ -12,7 +12,7 @@ interface CountrySelectProps {
 export default function CountrySelect({ value, onChange, error }: CountrySelectProps) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+      <label className="block text-xs font-bold text-slate-700">
         الدولة <span className="text-rose-500">*</span>
       </label>
       <div className="relative">
@@ -22,10 +22,10 @@ export default function CountrySelect({ value, onChange, error }: CountrySelectP
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full bg-white dark:bg-slate-900 border rounded-2xl pr-10 pl-4 py-3 text-sm text-slate-900 dark:text-white transition-all appearance-none cursor-pointer focus:outline-none focus:ring-2 ${
+          className={`w-full bg-white border rounded-xl pr-10 pl-4 py-3 text-sm text-slate-900 transition-all appearance-none cursor-pointer focus:outline-none focus:ring-2 ${
             error
-              ? "border-rose-300 dark:border-rose-800 focus:ring-rose-500/20"
-              : "border-slate-200 dark:border-slate-700 focus:border-amber-500 focus:ring-amber-500/20"
+              ? "border-rose-300 focus:ring-rose-500/20"
+              : "border-slate-200 focus:border-blue-600 focus:ring-blue-500/20"
           }`}
         >
           <option value="" disabled>
@@ -43,7 +43,7 @@ export default function CountrySelect({ value, onChange, error }: CountrySelectP
           </svg>
         </div>
       </div>
-      {error && <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">{error}</p>}
+      {error && <p className="text-xs text-rose-600 font-medium">{error}</p>}
     </div>
   );
 }
