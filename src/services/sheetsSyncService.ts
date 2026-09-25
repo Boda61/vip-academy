@@ -18,8 +18,14 @@ export interface SyncResult {
   message?: string;
 }
 
+
 /**
  * Synchronizes a single registration record from Supabase to Google Sheets.
+ *
+ * Sheet Column Layout:
+ * - Columns A:J: Visible registration details (Date, Name, Phone, WhatsApp, Country, University, Academic Year, Subjects, Total, Sync Status).
+ * - Column K:    Intentionally left empty as a spacer.
+ * - Column L:    Internal Registration ID (UUID) used for idempotency checks.
  *
  * Security:
  * - Requires a matching sessionToken belonging to the registration session (or internal admin bypass).
@@ -30,9 +36,9 @@ export interface SyncResult {
  * - If already 'syncing' or 'synced', gracefully exits without creating duplicate entries.
  *
  * Idempotency Guarantee:
- * - Scans Column A of the sheet for an existing Registration ID.
- * - If found, updates the existing row in-place.
- * - If not found, appends a new row to the sheet.
+ * - Scans Column L of the sheet for an existing Registration ID.
+ * - If found, updates the visible columns (A:J) and ensures Column L has the ID.
+ * - If not found, appends visible columns (A:J) and writes the ID to Column L of the newly created row.
  */
 export async function syncRegistrationToSheets(
   registrationId: string,
@@ -187,32 +193,36 @@ export async function syncRegistrationToSheets(
       ? new Date(registration.created_at).toISOString()
       : new Date().toISOString();
 
-    // 8. Build row values for Google Sheets (Columns A:K)
+    // 8. Build visible row values for Google Sheets (Columns A:J)
+    // Structure:
+    // - Columns A:J = Visible registration data
+    // - Column K    = Intentionally left empty
+    // - Column L    = Internal Registration ID (UUID) used for idempotency
     const rowValues = [
-      registration.id, // A: Registration ID
-      formattedDate, // B: Registration Date
-      registration.full_name, // C: Student Name
-      registration.phone_number, // D: Phone
-      registration.whatsapp_number, // E: WhatsApp
-      registration.country, // F: Country
-      universityName, // G: University
-      academicYearName, // H: Academic Year
-      registeredSubjectsFormatted, // I: Registered Subjects
-      Number(registration.total_amount).toFixed(2), // J: Total Amount
-      "synced", // K: Sync Status
+      formattedDate, // A: Registration Date
+      registration.full_name, // B: Student Name
+      registration.phone_number, // C: Phone
+      registration.whatsapp_number, // D: WhatsApp
+      registration.country, // E: Country
+      universityName, // F: University
+      academicYearName, // G: Academic Year
+      registeredSubjectsFormatted, // H: Registered Subjects
+      Number(registration.total_amount).toFixed(2), // I: Total Amount
+      "synced", // J: Sync Status
     ];
 
     // 9. Connect to Google Sheets API
     const sheets = getGoogleSheetsClient();
     const { spreadsheetId, sheetName } = getGoogleSheetsConfig();
 
-    // 10. Check Column A for existing Registration ID (Idempotency)
-    const columnAResponse = await sheets.spreadsheets.values.get({
+    // 10. Check Column L for existing Registration ID (Idempotency)
+    // Column L holds the unique registration UUID so the sheet can be updated without showing UUID in visible columns A:J.
+    const columnLResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${sheetName}!A:A`,
+      range: `${sheetName}!L:L`,
     });
 
-    const existingRows = columnAResponse.data.values || [];
+    const existingRows = columnLResponse.data.values || [];
     let existingRowIndex = -1;
 
     for (let i = 0; i < existingRows.length; i++) {
@@ -227,22 +237,32 @@ export async function syncRegistrationToSheets(
     let targetRowNumber = existingRowIndex;
 
     if (existingRowIndex > 0) {
-      // Row exists -> Update in place
+      // Row exists -> Update visible columns A:J in place
       isUpdate = true;
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `${sheetName}!A${existingRowIndex}:K${existingRowIndex}`,
+        range: `${sheetName}!A${existingRowIndex}:J${existingRowIndex}`,
         valueInputOption: "USER_ENTERED",
         requestBody: {
           values: [rowValues],
         },
       });
+
+      // Ensure internal Registration ID in Column L is set
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!L${existingRowIndex}`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [[registration.id]],
+        },
+      });
     } else {
-      // Row does not exist -> Append new row
+      // Row does not exist -> Append visible columns A:J
       isUpdate = false;
       const appendResponse = await sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: `${sheetName}!A:K`,
+        range: `${sheetName}!A:J`,
         valueInputOption: "USER_ENTERED",
         insertDataOption: "INSERT_ROWS",
         requestBody: {
@@ -250,12 +270,25 @@ export async function syncRegistrationToSheets(
         },
       });
 
+      // Determine the newly created row number from append response
       const updatedRange = appendResponse.data.updates?.updatedRange;
       if (updatedRange) {
         const match = updatedRange.match(/A(\d+)/);
         if (match) {
           targetRowNumber = parseInt(match[1], 10);
         }
+      }
+
+      // Write the internal Registration ID to Column L for idempotency tracking
+      if (targetRowNumber > 0) {
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `${sheetName}!L${targetRowNumber}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: {
+            values: [[registration.id]],
+          },
+        });
       }
     }
 
