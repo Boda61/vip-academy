@@ -125,3 +125,20 @@ export interface AdminStats {
   totalAcademicYears: number;
   activeAcademicYears: number;
 }
+
+export interface RegistrationTrendItem {
+  date: string;
+  day_name_ar: string;
+  count: number;
+  amount: number;
+}
+
+export interface RegistrationAnalytics {
+  today_count: number;
+  today_amount: number;
+  last_7_days_count: number;
+  this_month_count: number;
+  total_registrations: number;
+  seven_days_trend: RegistrationTrendItem[];
+}
+

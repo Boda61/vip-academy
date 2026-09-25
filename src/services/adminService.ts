@@ -7,6 +7,7 @@ import {
   AdminAcademicYear,
   AcademicYearMutationInput,
   AdminStats,
+  RegistrationAnalytics,
 } from "@/types";
 
 export interface AdminAuthCheckResponse {
@@ -539,3 +540,18 @@ export async function fetchAdminStats(): Promise<AdminStats> {
     activeAcademicYears,
   };
 }
+
+/**
+ * Fetches registration analytics via admin-only RPC (Africa/Cairo timezone).
+ */
+export async function fetchRegistrationAnalytics(): Promise<RegistrationAnalytics> {
+  const { data, error } = await supabase.rpc("get_admin_registration_analytics");
+
+  if (error) {
+    console.error("[AdminService] fetchRegistrationAnalytics error:", error);
+    throw new Error("تعذر جلب إحصائيات وتحليلات التسجيلات.");
+  }
+
+  return data as RegistrationAnalytics;
+}
+
