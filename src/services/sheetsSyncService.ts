@@ -282,6 +282,16 @@ export async function syncRegistrationToSheets(
 
     const sanitizedError = rawErrorMessage.slice(0, 500);
 
+    const errorStatus =
+      (err as { status?: number; code?: number })?.status ||
+      (err as { code?: number })?.code;
+
+    console.error("[sheetsSyncService] Google Sheets sync failed:", {
+      registrationId,
+      error: sanitizedError,
+      status: errorStatus,
+    });
+
     // Update Supabase with failed status on error so it can be retried later
     try {
       await supabaseAdmin
