@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Sparkles, RefreshCw, AlertTriangle, ShieldCheck, Clock, KeyRound, Loader2 } from "lucide-react";
-import { fetchCurrentDisplayQR, DisplayQRResponse } from "@/services/displayService";
+import { Sparkles, RefreshCw, AlertTriangle, ShieldCheck, Clock, KeyRound, Loader2, LogOut } from "lucide-react";
+import { fetchCurrentDisplayQR, logoutDisplayQR, DisplayQRResponse } from "@/services/displayService";
 
 const REFRESH_INTERVAL_SECONDS = 10;
 
@@ -15,12 +15,14 @@ export default function QRDisplay() {
   const [secretInput, setSecretInput] = useState("");
   const [savedSecret, setSavedSecret] = useState<string>("");
   const [countdown, setCountdown] = useState<number>(REFRESH_INTERVAL_SECONDS);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const isFetchingRef = useRef(false);
+  const isLoggingOutRef = useRef(false);
 
   const fetchQR = useCallback(async (secretToUse?: string) => {
-    if (isFetchingRef.current) {
-      console.log("[QRDisplay] fetchQR skipped — already fetching");
+    if (isFetchingRef.current || isLoggingOutRef.current) {
+      console.log("[QRDisplay] fetchQR skipped — already fetching or logging out");
       return;
     }
     isFetchingRef.current = true;
@@ -29,16 +31,22 @@ export default function QRDisplay() {
 
     try {
       const data = await fetchCurrentDisplayQR(effectiveSecret);
+      if (isLoggingOutRef.current) {
+        console.log("[QRDisplay] fetchQR ignored — logout occurred during request");
+        return;
+      }
       console.log("[QRDisplay] fetchQR success — raw_token received:", !!data?.raw_token);
       setQrData(data);
       setError(null);
       setNeedsAuth(false);
       setCountdown(REFRESH_INTERVAL_SECONDS);
     } catch (err: unknown) {
+      if (isLoggingOutRef.current) return;
       const msg = err instanceof Error ? err.message : "تعذر تحميل رمز الاستجابة السريعة";
       console.error("[QRDisplay] fetchQR error:", msg);
       if (msg.includes("401") || msg.includes("غير مصرح")) {
         setNeedsAuth(true);
+        setQrData(null);
       } else {
         setError(msg);
       }
@@ -62,14 +70,14 @@ export default function QRDisplay() {
 
     // Perform initial fetch asynchronously to avoid synchronous setState in effect
     const initialFetch = async () => {
-      if (mounted) {
+      if (mounted && !isLoggingOutRef.current && !needsAuth) {
         await fetchQR();
       }
     };
     initialFetch();
 
     const timer = setInterval(() => {
-      if (!mounted) return;
+      if (!mounted || isLoggingOutRef.current || needsAuth) return;
       setCountdown((prev) => {
         if (prev <= 1) {
           fetchQR();
@@ -94,6 +102,31 @@ export default function QRDisplay() {
     setSavedSecret(secret);
     setLoading(true);
     fetchQR(secret);
+  };
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    try {
+      setLoggingOut(true);
+      isLoggingOutRef.current = true;
+      await logoutDisplayQR();
+
+      // Clear all display states immediately upon successful logout
+      setQrData(null);
+      setSavedSecret("");
+      setSecretInput("");
+      setError(null);
+      setNeedsAuth(true);
+      setCountdown(REFRESH_INTERVAL_SECONDS);
+      console.log("[QRDisplay] Logged out successfully — polling stopped and auth required");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.";
+      console.error("[QRDisplay] Logout error:", msg);
+      setError(msg);
+    } finally {
+      isLoggingOutRef.current = false;
+      setLoggingOut(false);
+    }
   };
 
   // Build registration URL from NEXT_PUBLIC_APP_URL env or current origin
@@ -130,10 +163,39 @@ export default function QRDisplay() {
           </div>
         </div>
 
-        {/* Live Status Badge */}
-        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 text-xs font-semibold">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>شاشة العرض متصلة</span>
+        {/* Status & Actions Badge */}
+        <div className="flex items-center gap-3">
+          {/* Live Status Badge */}
+          <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold ${
+            needsAuth
+              ? "bg-amber-950/60 border border-amber-800/60 text-amber-400"
+              : "bg-emerald-950/60 border border-emerald-800/60 text-emerald-400"
+          }`}>
+            <span className={`w-2.5 h-2.5 rounded-full ${needsAuth ? "bg-amber-500" : "bg-emerald-500 animate-pulse"}`}></span>
+            <span>{needsAuth ? "شاشة العرض مغلقة" : "شاشة العرض متصلة"}</span>
+          </div>
+
+          {/* Logout / Lock Button */}
+          {!needsAuth && (
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 hover:border-rose-700 text-rose-400 hover:text-rose-300 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              title="تسجيل الخروج وقفل شاشة العرض"
+            >
+              {loggingOut ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>جاري تسجيل الخروج...</span>
+                </>
+              ) : (
+                <>
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>تسجيل الخروج</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </header>
 
@@ -242,3 +304,4 @@ export default function QRDisplay() {
     </div>
   );
 }
+

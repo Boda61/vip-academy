@@ -42,3 +42,26 @@ export async function fetchCurrentDisplayQR(secret?: string): Promise<DisplayQRR
 
   return data;
 }
+
+export async function logoutDisplayQR(): Promise<void> {
+  const url = new URL("/api/display/logout", window.location.origin);
+  console.log("[DisplayService] Logout start");
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      "Cache-Control": "no-cache, no-store",
+    },
+    credentials: "same-origin",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMsg = errorData.error || `فشل تسجيل الخروج (${response.status})`;
+    console.error("[DisplayService] Logout API error:", errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  console.log("[DisplayService] Logout successful");
+}
+
