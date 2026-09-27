@@ -311,7 +311,7 @@ export default function QRDisplay() {
       {/* Footer Info */}
       <footer className="w-full max-w-5xl text-center border-t border-slate-900 pt-6">
         <p className="text-xs text-slate-500">
-          VIP Academy &copy; {new Date().getFullYear()} — يتجدد الرمز كل دقيقة تلقائياً، ويبقى صالحاً لمدة 3 دقائق إضافية بعد التجديد لضمان اكتمال التسجيل.
+          VIP Academy &copy; {new Date().getFullYear()} — يتجدد الرمز كل 15 ثانيه تلقائياً، ويبقى صالحاً لمدة 3 دقائق إضافية بعد التجديد لضمان اكتمال التسجيل.
         </p>
       </footer>
     </div>
