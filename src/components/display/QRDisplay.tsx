@@ -5,7 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Sparkles, RefreshCw, AlertTriangle, ShieldCheck, Clock, KeyRound, Loader2, LogOut } from "lucide-react";
 import { fetchCurrentDisplayQR, logoutDisplayQR, DisplayQRResponse } from "@/services/displayService";
 
-const REFRESH_INTERVAL_SECONDS = 10;
+const REFRESH_INTERVAL_SECONDS = 15;
 
 export default function QRDisplay() {
   const [qrData, setQrData] = useState<DisplayQRResponse | null>(null);
