@@ -5,7 +5,9 @@ import { QRCodeSVG } from "qrcode.react";
 import { Sparkles, RefreshCw, AlertTriangle, ShieldCheck, Clock, KeyRound, Loader2, LogOut } from "lucide-react";
 import { fetchCurrentDisplayQR, logoutDisplayQR, DisplayQRResponse } from "@/services/displayService";
 
-const REFRESH_INTERVAL_SECONDS = 15;
+// How long (seconds) the QR is displayed on screen before requesting a new one.
+// Must match v_display_seconds in the SQL function get_or_create_active_qr_token.
+const DISPLAY_WINDOW_SECONDS = 15;
 
 export default function QRDisplay() {
   const [qrData, setQrData] = useState<DisplayQRResponse | null>(null);
@@ -14,7 +16,7 @@ export default function QRDisplay() {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [secretInput, setSecretInput] = useState("");
   const [savedSecret, setSavedSecret] = useState<string>("");
-  const [countdown, setCountdown] = useState<number>(REFRESH_INTERVAL_SECONDS);
+  const [countdown, setCountdown] = useState<number>(DISPLAY_WINDOW_SECONDS);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const isFetchingRef = useRef(false);
@@ -35,11 +37,20 @@ export default function QRDisplay() {
         console.log("[QRDisplay] fetchQR ignored — logout occurred during request");
         return;
       }
-      console.log("[QRDisplay] fetchQR success — raw_token received:", !!data?.raw_token);
+      if (data?.reused) {
+        // Token is still within its 15-second display window.
+        // The DB did not issue a new raw_token, so keep the current QR on screen.
+        console.log("[QRDisplay] fetchQR — DB returned reused=true, keeping current QR");
+        setError(null);
+        setNeedsAuth(false);
+        // Do NOT reset countdown; let the timer keep ticking normally.
+        return;
+      }
+      console.log("[QRDisplay] fetchQR success — new raw_token received");
       setQrData(data);
       setError(null);
       setNeedsAuth(false);
-      setCountdown(REFRESH_INTERVAL_SECONDS);
+      setCountdown(DISPLAY_WINDOW_SECONDS);
     } catch (err: unknown) {
       if (isLoggingOutRef.current) return;
       const msg = err instanceof Error ? err.message : "تعذر تحميل رمز الاستجابة السريعة";
@@ -80,8 +91,10 @@ export default function QRDisplay() {
       if (!mounted || isLoggingOutRef.current || needsAuth) return;
       setCountdown((prev) => {
         if (prev <= 1) {
+          // Time to request a new QR from the display handler.
+          // The DB will decide whether to rotate or reuse.
           fetchQR();
-          return REFRESH_INTERVAL_SECONDS;
+          return DISPLAY_WINDOW_SECONDS;
         }
         return prev - 1;
       });
@@ -117,7 +130,7 @@ export default function QRDisplay() {
       setSecretInput("");
       setError(null);
       setNeedsAuth(true);
-      setCountdown(REFRESH_INTERVAL_SECONDS);
+      setCountdown(DISPLAY_WINDOW_SECONDS);
       console.log("[QRDisplay] Logged out successfully — polling stopped and auth required");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.";
@@ -276,13 +289,13 @@ export default function QRDisplay() {
               </div>
             </div>
 
-            {/* Dynamic Details & 10-Second Countdown */}
+            {/* Dynamic Details & MM:SS Countdown */}
             <div className="flex flex-wrap items-center justify-center gap-4 mt-6 text-xs text-slate-400">
               <div className="flex items-center gap-2 bg-slate-900/90 px-4 py-2 rounded-2xl border border-slate-800 shadow-inner">
                 <Clock className="w-4 h-4 text-amber-400" />
-                <span>يتغير الرمز تلقائياً خلال:</span>
-                <span className="font-mono font-black text-sm text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/20 min-w-[32px] text-center">
-                  {countdown}s
+                <span>يتجدد الرمز خلال:</span>
+                <span className="font-mono font-black text-sm text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/20 min-w-[42px] text-center">
+                  {String(Math.floor(countdown / 60)).padStart(2, "0")}:{String(countdown % 60).padStart(2, "0")}
                 </span>
               </div>
 
@@ -298,7 +311,7 @@ export default function QRDisplay() {
       {/* Footer Info */}
       <footer className="w-full max-w-5xl text-center border-t border-slate-900 pt-6">
         <p className="text-xs text-slate-500">
-          VIP Academy &copy; {new Date().getFullYear()} — يتجدد الرمز كل 10 ثوانٍ تلقائياً بعد كل مسح لتأمين تسجيل الطلاب.
+          VIP Academy &copy; {new Date().getFullYear()} — يتجدد الرمز كل دقيقة تلقائياً، ويبقى صالحاً لمدة 3 دقائق إضافية بعد التجديد لضمان اكتمال التسجيل.
         </p>
       </footer>
     </div>

@@ -1,6 +1,7 @@
 export interface DisplayQRResponse {
-  raw_token: string;
+  raw_token: string | null;
   expires_at: string;
+  reused?: boolean;
   error?: string;
 }
 
@@ -36,6 +37,8 @@ export async function fetchCurrentDisplayQR(secret?: string): Promise<DisplayQRR
   console.log(
     "[DisplayService] Parsed OK — has raw_token:",
     !!data?.raw_token,
+    ", reused:",
+    data?.reused ?? false,
     ", expires_at:",
     data?.expires_at ?? "(missing)"
   );
