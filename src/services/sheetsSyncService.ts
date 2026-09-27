@@ -72,8 +72,10 @@ export async function syncRegistrationToSheets(
         created_at,
         university_id,
         academic_year_id,
+        payment_method_id,
         universities (name_ar, name_en),
         academic_years (name_ar, name_en),
+        payment_methods (name_ar, name_en, code),
         registration_sessions (session_token)
       `
       )

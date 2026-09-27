@@ -20,6 +20,7 @@ import {
   Calendar,
   Clock,
   Coins,
+  CreditCard,
   RefreshCw,
   AlertCircle,
   Activity,
@@ -146,6 +147,13 @@ export default function AdminDashboardPage() {
           >
             <Boxes className="w-3.5 h-3.5 text-slate-500" />
             <span>الموديولات</span>
+          </Link>
+          <Link
+            href="/admin/payment-methods"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200/60 transition-all cursor-pointer"
+          >
+            <CreditCard className="w-3.5 h-3.5 text-slate-500" />
+            <span>طرق الدفع</span>
           </Link>
           <Link
             href="/admin/subjects"
@@ -308,7 +316,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
           {/* Total Universities */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
             <div className="flex items-center justify-between mb-3">
@@ -338,6 +346,22 @@ export default function AdminDashboardPage() {
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
               {stats ? `${stats.activeAcademicYears} مفعلة` : "جاري التحميل"}
+            </p>
+          </div>
+
+          {/* Total Payment Methods */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-slate-500">طرق الدفع</span>
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <CreditCard className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-black text-slate-900">
+              {loading ? "..." : stats?.totalPaymentMethods || 0}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {stats ? `${stats.activePaymentMethods} مفعلة` : "جاري التحميل"}
             </p>
           </div>
 

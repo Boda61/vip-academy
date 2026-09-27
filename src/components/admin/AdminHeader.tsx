@@ -26,8 +26,17 @@ export default function AdminHeader({
     if (pathname.startsWith("/admin/academic-years")) {
       return { title: "الفرق الدراسية", subtitle: "إدارة الفرق الأكاديمية وترتيبها" };
     }
+    if (pathname.startsWith("/admin/semesters")) {
+      return { title: "الترمات الدراسية", subtitle: "إدارة الفصول والترمات الأكاديمية" };
+    }
+    if (pathname.startsWith("/admin/modules")) {
+      return { title: "الموديولات", subtitle: "إدارة الموديولات الطبية والأكاديمية" };
+    }
     if (pathname.startsWith("/admin/subjects")) {
       return { title: "المواد والأسعار", subtitle: "إدارة المواد الدراسية وقوائم الأسعار" };
+    }
+    if (pathname.startsWith("/admin/payment-methods")) {
+      return { title: "طرق الدفع", subtitle: "إدارة وسائل الدفع والتحكم في إتاحتها للطلاب" };
     }
     return { title: "لوحة الإدارة", subtitle: "نظام إدارة VIP Academy" };
   };

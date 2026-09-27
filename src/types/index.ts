@@ -189,6 +189,25 @@ export interface SubjectMutationInput {
   is_active?: boolean;
 }
 
+export interface AdminPaymentMethod {
+  id: string;
+  name_ar: string;
+  name_en: string | null;
+  code: string;
+  is_active: boolean;
+  display_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PaymentMethodMutationInput {
+  name_ar: string;
+  name_en?: string | null;
+  code: string;
+  display_order: number;
+  is_active?: boolean;
+}
+
 export interface AdminStats {
   totalSubjects: number;
   activeSubjects: number;
@@ -201,6 +220,8 @@ export interface AdminStats {
   activeSemesters?: number;
   totalModules?: number;
   activeModules?: number;
+  totalPaymentMethods?: number;
+  activePaymentMethods?: number;
 }
 
 export interface RegistrationTrendItem {
@@ -218,4 +239,5 @@ export interface RegistrationAnalytics {
   total_registrations: number;
   seven_days_trend: RegistrationTrendItem[];
 }
+
 

@@ -42,6 +42,14 @@ export interface SubjectOption {
   module_id?: string | null;
 }
 
+export interface PaymentMethodOption {
+  id: string;
+  name_ar: string;
+  name_en: string | null;
+  code: string;
+  display_order: number;
+}
+
 export interface ClaimTokenResponse {
   success: boolean;
   session_token: string;
@@ -58,12 +66,14 @@ export interface SubmitRegistrationParams {
   academic_year_id: string;
   semester_id?: string;
   module_id?: string;
+  payment_method_id?: string;
   subject_ids: string[];
 }
 
 export interface SubmitRegistrationResponse {
   success: boolean;
   registration_id: string;
+  payment_method_id?: string;
   total_amount: number;
   status: string;
   created_at: string;
@@ -202,6 +212,22 @@ export async function fetchSubjects(
 }
 
 /**
+ * Fetches active payment methods from database.
+ */
+export async function fetchPaymentMethods(): Promise<PaymentMethodOption[]> {
+  const { data, error } = await supabase
+    .from("payment_methods")
+    .select("id, name_ar, name_en, code, display_order")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    throw new Error("تعذر تحميل طرق الدفع من الخادم.");
+  }
+  return data || [];
+}
+
+/**
  * Submits student registration atomically to Supabase.
  */
 export async function submitRegistration(
@@ -218,6 +244,7 @@ export async function submitRegistration(
     p_subject_ids: params.subject_ids,
     p_semester_id: params.semester_id || null,
     p_module_id: params.module_id || null,
+    p_payment_method_id: params.payment_method_id || null,
   });
 
   if (error) {
@@ -230,8 +257,12 @@ export async function submitRegistration(
     if (error.message.includes("P0014") || error.message.includes("المواد")) {
       throw new Error("بعض المواد المختارة غير صالحة أو لا تنتمي لنفس الجامعة والفرقة والموديول.");
     }
+    if (error.message.includes("P0018") || error.message.includes("الدفع")) {
+      throw new Error("طريقة الدفع المختارة غير صالحة أو تم إيقافها.");
+    }
     throw new Error(error.message || "حدث خطأ أثناء حفظ التسجيل.");
   }
 
   return data as SubmitRegistrationResponse;
 }
+

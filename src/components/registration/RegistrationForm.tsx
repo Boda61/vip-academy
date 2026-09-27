@@ -10,11 +10,13 @@ import {
   SemesterOption,
   ModuleOption,
   SubjectOption,
+  PaymentMethodOption,
   fetchUniversities,
   fetchAcademicYears,
   fetchSemesters,
   fetchModules,
   fetchSubjects,
+  fetchPaymentMethods,
   submitRegistration,
   SubmitRegistrationResponse,
 } from "@/services/registrationService";
@@ -27,6 +29,9 @@ import {
   GraduationCap,
   CalendarDays,
   Boxes,
+  CreditCard,
+  Banknote,
+  CheckCircle2,
   AlertTriangle,
   Send,
   Loader2,
@@ -50,6 +55,7 @@ const registrationSchema = z.object({
   academicYearId: z.string().uuid("يرجى اختيار الفرقة الدراسية"),
   semesterId: z.string().uuid("يرجى اختيار الترم الدراسي"),
   moduleId: z.string().uuid("يرجى اختيار الموديول"),
+  paymentMethodId: z.string().uuid("يرجى اختيار طريقة الدفع").optional().or(z.literal("")),
   subjectIds: z.array(z.string().uuid()).min(1, "يجب اختيار مادة دراسية واحدة على الأقل"),
 });
 
@@ -71,6 +77,7 @@ export default function RegistrationForm({
   const [semesters, setSemesters] = useState<SemesterOption[]>([]);
   const [modules, setModules] = useState<ModuleOption[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodOption[]>([]);
 
   const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [loadingSemesters, setLoadingSemesters] = useState(false);
@@ -97,6 +104,7 @@ export default function RegistrationForm({
       academicYearId: "",
       semesterId: "",
       moduleId: "",
+      paymentMethodId: "",
       subjectIds: [],
     },
   });
@@ -105,18 +113,27 @@ export default function RegistrationForm({
   const selectedAcademicYearId = watch("academicYearId");
   const selectedSemesterId = watch("semesterId");
   const selectedModuleId = watch("moduleId");
+  const selectedPaymentMethodId = watch("paymentMethodId");
 
-  // 1. Load Universities and Academic Years on mount
+  // 1. Load Universities, Academic Years, and Payment Methods on mount
   useEffect(() => {
     async function loadCatalog() {
       try {
         setLoadingCatalog(true);
-        const [unis, years] = await Promise.all([
+        const [unis, years, payments] = await Promise.all([
           fetchUniversities(),
           fetchAcademicYears(),
+          fetchPaymentMethods(),
         ]);
         setUniversities(unis);
         setAcademicYears(years);
+        setPaymentMethods(payments);
+
+        // Automatically preselect default Cash or first active payment method
+        if (payments.length > 0) {
+          const defaultCash = payments.find((p) => p.code.toLowerCase() === "cash") || payments[0];
+          setValue("paymentMethodId", defaultCash.id);
+        }
       } catch (err: unknown) {
         setFormError(err instanceof Error ? err.message : "تعذر تحميل البيانات المرجعية.");
       } finally {
@@ -124,7 +141,7 @@ export default function RegistrationForm({
       }
     }
     loadCatalog();
-  }, []);
+  }, [setValue]);
 
   // 2. Fetch Semesters when Academic Year changes (Cascading Reset)
   useEffect(() => {
@@ -236,6 +253,7 @@ export default function RegistrationForm({
         academic_year_id: data.academicYearId,
         semester_id: data.semesterId,
         module_id: data.moduleId,
+        payment_method_id: data.paymentMethodId || undefined,
         subject_ids: data.subjectIds,
       });
 
@@ -561,6 +579,73 @@ export default function RegistrationForm({
           />
         )}
       />
+
+      {/* 10. Payment Method Selection */}
+      {paymentMethods.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold text-slate-700">
+              طريقة الدفع <span className="text-rose-500">*</span>
+            </label>
+            <span className="text-[11px] text-slate-400">
+              {paymentMethods.length === 1 ? "الدفع النقدي متاح حالياً" : "اختر وسيلة الدفع المناسبة"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {paymentMethods.map((pm) => {
+              const isSelected = selectedPaymentMethodId === pm.id;
+              const isCash = pm.code.toLowerCase() === "cash";
+
+              return (
+                <button
+                  type="button"
+                  key={pm.id}
+                  onClick={() => setValue("paymentMethodId", pm.id, { shouldValidate: true })}
+                  className={`flex items-center justify-between p-3.5 rounded-xl border text-right transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-950 shadow-xs"
+                      : "bg-slate-50/70 border-slate-200 hover:border-slate-300 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs ${
+                        isSelected
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "bg-white text-slate-500 border border-slate-200"
+                      }`}
+                    >
+                      {isCash ? <Banknote className="w-4 h-4" /> : <CreditCard className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold leading-tight">{pm.name_ar}</p>
+                      {pm.name_en && (
+                        <p className="text-[10px] text-slate-400 font-sans mt-0.5">{pm.name_en}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 mr-2">
+                    {isSelected ? (
+                      <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 rounded-full border border-slate-300 bg-white" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {errors.paymentMethodId && (
+            <p className="text-xs text-rose-600 font-medium">
+              {errors.paymentMethodId.message}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Submit Button */}
       <div className="pt-4 border-t border-slate-100">

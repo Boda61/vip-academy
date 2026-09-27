@@ -61,7 +61,7 @@ export default function RegistrationSuccess({
       <div className="flex items-start gap-2.5 bg-blue-50/70 border border-blue-200/80 p-4 rounded-xl text-right text-xs text-blue-900 mb-6">
         <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
         <p className="leading-relaxed">
-          يرجى التوجه إلى موظف الاستقبال لتأكيد تفعيل الحساب واستلام جدول المحاضرات.
+          يرجى التوجه إلى موظف الاستقبال لتأكيد الدفع و تفعيل الحساب.
         </p>
       </div>
 

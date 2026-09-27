@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Boxes,
   BookOpen,
+  CreditCard,
   LogOut,
   X,
   ShieldCheck,
@@ -69,6 +70,12 @@ export default function AdminSidebar({
       label: "المواد والأسعار",
       href: "/admin/subjects",
       icon: BookOpen,
+      exact: false,
+    },
+    {
+      label: "طرق الدفع",
+      href: "/admin/payment-methods",
+      icon: CreditCard,
       exact: false,
     },
   ];

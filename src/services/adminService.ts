@@ -10,6 +10,8 @@ import {
   SemesterMutationInput,
   AdminModule,
   ModuleMutationInput,
+  AdminPaymentMethod,
+  PaymentMethodMutationInput,
   AdminStats,
   RegistrationAnalytics,
 } from "@/types";
@@ -854,16 +856,151 @@ export async function deleteSubject(id: string): Promise<void> {
   }
 }
 
+// ==========================================
+// PAYMENT METHODS MANAGEMENT
+// ==========================================
+
+/**
+ * Fetches all payment methods (active and inactive) ordered by display_order.
+ */
+export async function fetchAdminPaymentMethods(): Promise<AdminPaymentMethod[]> {
+  const { data, error } = await supabase
+    .from("payment_methods")
+    .select("id, name_ar, name_en, code, is_active, display_order, created_at, updated_at")
+    .order("display_order", { ascending: true });
+
+  if (error) {
+    console.error("[AdminService] fetchAdminPaymentMethods error:", error);
+    throw new Error("تعذر جلب قائمة طرق الدفع.");
+  }
+
+  return (data || []) as AdminPaymentMethod[];
+}
+
+/**
+ * Creates a new payment method.
+ */
+export async function createPaymentMethod(input: PaymentMethodMutationInput): Promise<string> {
+  if (!input.name_ar || !input.name_ar.trim()) {
+    throw new Error("اسم طريقة الدفع باللغة العربية مطلوب.");
+  }
+  if (!input.code || !input.code.trim()) {
+    throw new Error("كود طريقة الدفع مطلوب (مثل cash, instapay, vodafone_cash).");
+  }
+
+  const trimmedCode = input.code.trim().toLowerCase().replace(/\s+/g, "_");
+  const trimmedNameAr = input.name_ar.trim();
+  const trimmedNameEn = input.name_en?.trim() || null;
+  const displayOrder = Number(input.display_order) || 1;
+
+  const { data, error } = await supabase
+    .from("payment_methods")
+    .insert({
+      name_ar: trimmedNameAr,
+      name_en: trimmedNameEn,
+      code: trimmedCode,
+      display_order: displayOrder,
+      is_active: input.is_active ?? true,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[AdminService] createPaymentMethod error:", error);
+    if (error.code === "23505" || error.message.includes("code")) {
+      throw new Error("كود طريقة الدفع مسجل مسبقاً، يرجى استخدام كود مختلف.");
+    }
+    throw new Error(error.message || "تعذر إضافة طريقة الدفع الجديدة.");
+  }
+
+  return data.id;
+}
+
+/**
+ * Updates an existing payment method.
+ */
+export async function updatePaymentMethod(
+  id: string,
+  updates: Partial<PaymentMethodMutationInput>
+): Promise<void> {
+  if (!id) throw new Error("معرف طريقة الدفع مطلوب للتحديث.");
+
+  const payload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (updates.name_ar !== undefined) {
+    if (!updates.name_ar.trim()) throw new Error("اسم طريقة الدفع بالعربية لا يمكن أن يكون فارغاً.");
+    payload.name_ar = updates.name_ar.trim();
+  }
+  if (updates.name_en !== undefined) {
+    payload.name_en = updates.name_en ? updates.name_en.trim() : null;
+  }
+  if (updates.code !== undefined) {
+    if (!updates.code.trim()) throw new Error("كود طريقة الدفع لا يمكن أن يكون فارغاً.");
+    payload.code = updates.code.trim().toLowerCase().replace(/\s+/g, "_");
+  }
+  if (updates.display_order !== undefined) {
+    payload.display_order = Number(updates.display_order) || 1;
+  }
+  if (updates.is_active !== undefined) {
+    payload.is_active = Boolean(updates.is_active);
+  }
+
+  const { error } = await supabase
+    .from("payment_methods")
+    .update(payload)
+    .eq("id", id);
+
+  if (error) {
+    console.error("[AdminService] updatePaymentMethod error:", error);
+    if (error.code === "23505" || error.message.includes("code")) {
+      throw new Error("كود طريقة الدفع مسجل لطريقة أخرى.");
+    }
+    throw new Error(error.message || "تعذر حفظ التعديلات على طريقة الدفع.");
+  }
+}
+
+/**
+ * Toggles a payment method's active status directly.
+ */
+export async function togglePaymentMethodActive(id: string, currentStatus: boolean): Promise<boolean> {
+  const newStatus = !currentStatus;
+  await updatePaymentMethod(id, { is_active: newStatus });
+  return newStatus;
+}
+
+/**
+ * Deletes a payment method. Fails safely if linked to registrations.
+ */
+export async function deletePaymentMethod(id: string): Promise<void> {
+  if (!id) throw new Error("معرف طريقة الدفع مطلوب للحذف.");
+
+  const { error } = await supabase
+    .from("payment_methods")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("[AdminService] deletePaymentMethod error:", error);
+    if (error.code === "23503" || error.message.includes("foreign key") || error.message.includes("violates")) {
+      throw new Error("لا يمكن حذف طريقة الدفع هذه لأنها مسجلة لدى طلاب في طلبات تسجيل سابقة. يمكنك تعطيلها بدلاً من الحذف.");
+    }
+    throw new Error(error.message || "تعذر حذف طريقة الدفع.");
+  }
+}
+
 /**
  * Calculates dashboard statistics for Admin overview.
  */
 export async function fetchAdminStats(): Promise<AdminStats> {
-  const [subjectsRes, unisRes, yearsRes, semestersRes, modulesRes] = await Promise.all([
+  const [subjectsRes, unisRes, yearsRes, semestersRes, modulesRes, paymentMethodsRes] = await Promise.all([
     supabase.from("subjects").select("id, is_active"),
     supabase.from("universities").select("id, is_active"),
     supabase.from("academic_years").select("id, is_active"),
     supabase.from("semesters").select("id, is_active"),
     supabase.from("modules").select("id, is_active"),
+    supabase.from("payment_methods").select("id, is_active"),
   ]);
 
   const allSubjects = subjectsRes.data || [];
@@ -887,6 +1024,10 @@ export async function fetchAdminStats(): Promise<AdminStats> {
   const totalModules = allModules.length;
   const activeModules = allModules.filter((m) => m.is_active).length;
 
+  const allPayments = paymentMethodsRes.data || [];
+  const totalPaymentMethods = allPayments.length;
+  const activePaymentMethods = allPayments.filter((p) => p.is_active).length;
+
   return {
     totalSubjects,
     activeSubjects,
@@ -899,6 +1040,8 @@ export async function fetchAdminStats(): Promise<AdminStats> {
     activeSemesters,
     totalModules,
     activeModules,
+    totalPaymentMethods,
+    activePaymentMethods,
   };
 }
 
@@ -915,4 +1058,5 @@ export async function fetchRegistrationAnalytics(): Promise<RegistrationAnalytic
 
   return data as RegistrationAnalytics;
 }
+
 
