@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- Migration: 20260927190000_fix_qr_grace_period.sql
 -- Purpose:   Implement real Grace Period for QR tokens using a
 --            dedicated 'grace' status, so students can claim a
@@ -16,8 +16,8 @@
 --
 -- Token timing:
 --   display_window = 15 seconds  (QR shown on screen)
---   grace_period   = 225 seconds (total - display)
---   total_lifetime = 240 seconds (4 minutes from created_at)
+--   grace_period   = 105 seconds (total - display)
+--   total_lifetime = 120 seconds (2 minutes from created_at)
 --
 -- Key design decisions:
 --   * KEEP idx_qr_tokens_single_active: still enforces one active
@@ -61,7 +61,7 @@ DECLARE
     v_display_seconds CONSTANT INT      := 15;
 
     -- Total DB lifetime per token (display window + grace period).
-    v_total_lifetime  CONSTANT INTERVAL := INTERVAL '4 minutes';
+    v_total_lifetime  CONSTANT INTERVAL := INTERVAL '2 minutes';
 BEGIN
     -- Step A: Expire ALL tokens (active or grace) whose total lifetime elapsed.
     UPDATE public.qr_tokens
@@ -89,7 +89,7 @@ BEGIN
 
         -- Display window is over.
         -- Transition active -> grace (NOT expired).
-        -- Grace token remains claimable until its expires_at (~3m 45s more).
+        -- Grace token remains claimable until its expires_at (~1m 45s more).
         -- Unique partial index only covers status='active',
         -- so this grace row does NOT conflict with the new active token.
         UPDATE public.qr_tokens
