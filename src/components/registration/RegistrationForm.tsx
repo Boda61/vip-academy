@@ -314,7 +314,7 @@ export default function RegistrationForm({
       {/* 1. Full Name */}
       <div className="space-y-1.5">
         <label className="block text-xs font-bold text-slate-700">
-          اسم الطالب بالكامل <span className="text-rose-500">*</span>
+          اسم الطالب بالكامل (باللغة العربية) <span className="text-rose-500">*</span>
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-slate-400">
@@ -331,6 +331,9 @@ export default function RegistrationForm({
             }`}
           />
         </div>
+        <p className="text-[11px] text-slate-500">
+          ⚠️ اكتب اسمك بالعربية كما ستدخله في تطبيق @HOME
+        </p>
         {errors.fullName && (
           <p className="text-xs text-rose-600 font-medium">
             {errors.fullName.message}

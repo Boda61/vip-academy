@@ -113,6 +113,7 @@ function RegisterContent() {
             fullName={submissionSuccess.formData.fullName}
             totalAmount={submissionSuccess.result.total_amount}
             subjectCount={submissionSuccess.formData.subjectIds.length}
+            whatsappNumber={submissionSuccess.formData.whatsappNumber}
           />
         ) : sessionToken ? (
           <RegistrationForm
