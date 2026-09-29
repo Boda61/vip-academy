@@ -34,7 +34,7 @@ var CONFIG = {
   // Examples:
   //   Production: "https://vip-academy.vercel.app"
   //   Local dev:  "http://192.168.1.7:3000"
-  API_BASE_URL: "https://YOUR_DEPLOYED_URL_HERE",
+  API_BASE_URL: "https://vip-academy.vercel.app",
 
   // The API endpoint path for reverse sync
   REVERSE_SYNC_PATH: "/api/sync/sheets/reverse",
