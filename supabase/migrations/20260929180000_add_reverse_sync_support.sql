@@ -1,22 +1,20 @@
 -- ====================================================================
--- MIGRATION: Add Reverse Sync Support (Google Sheets → Supabase)
+-- MIGRATION: Add Reverse Sync Support (Google Sheets → Supabase) [REVISED]
 -- ====================================================================
 -- PURPOSE: Enable safe two-way synchronization between Google Sheets
 --          and Supabase without modifying or deleting any existing data.
 --
--- THIS MIGRATION IS NON-DESTRUCTIVE:
---   ✅ Adds new columns (nullable, with defaults)
---   ✅ Adds new trigger
---   ✅ Extends existing CHECK constraint
---   ❌ Does NOT delete any column
---   ❌ Does NOT delete any data
---   ❌ Does NOT drop any table
---   ❌ Does NOT truncate anything
+-- THIS MIGRATION IS 100% NON-DESTRUCTIVE:
+--   ✅ Adds updated_at column (with DEFAULT now() and backfilled to created_at)
+--   ✅ Adds sheet_updated_at column (nullable)
+--   ✅ Creates BEFORE UPDATE trigger tr_registrations_updated_at using existing handle_updated_at()
+--   ✅ Safely updates ONLY the sync_status check constraint to add ('sheet_modified', 'sheet_deleted')
+--   ✅ Preserves ALL existing check constraints (status, full_name, total_amount)
+--   ✅ Preserves ALL existing foreign keys and unique indexes
+--   ❌ NO DELETE, NO TRUNCATE, NO DROP TABLE, NO DATA LOSS
 -- ====================================================================
 
--- 1. Add updated_at column to registrations (for conflict detection)
---    Default = created_at so existing rows get a sensible initial value
---    without modifying any actual registration data.
+-- 1. Add updated_at column to public.registrations
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -28,13 +26,14 @@ BEGIN
         ALTER TABLE public.registrations
             ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
-        -- Backfill existing rows: set updated_at = created_at (safe, read-only operation on existing data)
-        UPDATE public.registrations SET updated_at = created_at WHERE updated_at != created_at OR TRUE;
+        -- Initialize updated_at with the registration creation time
+        UPDATE public.registrations
+            SET updated_at = created_at
+            WHERE created_at IS NOT NULL;
     END IF;
 END $$;
 
--- 2. Add sheet_updated_at column to registrations (tracks last Google Sheets edit)
---    Used for sync loop prevention: if sheet_updated_at >= synced_at, the change came from Sheets.
+-- 2. Add sheet_updated_at column to public.registrations
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -49,37 +48,34 @@ BEGIN
 END $$;
 
 -- 3. Add auto-update trigger for updated_at on registrations
---    Uses the existing handle_updated_at() function from initial_schema migration.
+--    handle_updated_at() is an existing BEFORE UPDATE trigger function that sets NEW.updated_at = now()
 DROP TRIGGER IF EXISTS tr_registrations_updated_at ON public.registrations;
 CREATE TRIGGER tr_registrations_updated_at
     BEFORE UPDATE ON public.registrations
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_updated_at();
 
--- 4. Extend sync_status CHECK constraint to include new states for reverse sync
---    New states:
---    - 'sheet_modified': The record was updated via Google Sheets reverse sync
---    - 'sheet_deleted': The record's row was removed from Google Sheets (soft-delete)
+-- 4. Update sync_status CHECK constraint
+--    Existing allowed values: 'pending', 'syncing', 'synced', 'failed'
+--    New allowed values added: 'sheet_modified', 'sheet_deleted'
+--    Target ONLY the registrations_sync_status_check constraint explicitly
 DO $$
-DECLARE
-    r RECORD;
 BEGIN
-    FOR r IN (
-        SELECT conname
-        FROM pg_constraint
+    -- Drop only the specific named constraint if it exists
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
         WHERE conrelid = 'public.registrations'::regclass
-          AND contype = 'c'
-          AND pg_get_constraintdef(oid) ILIKE '%sync_status%'
-    ) LOOP
-        EXECUTE 'ALTER TABLE public.registrations DROP CONSTRAINT ' || quote_ident(r.conname);
-    END LOOP;
-END;
-$$;
+          AND conname = 'registrations_sync_status_check'
+    ) THEN
+        ALTER TABLE public.registrations
+            DROP CONSTRAINT registrations_sync_status_check;
+    END IF;
+END $$;
 
 ALTER TABLE public.registrations
     ADD CONSTRAINT registrations_sync_status_check
     CHECK (sync_status IN ('pending', 'syncing', 'synced', 'failed', 'sheet_modified', 'sheet_deleted'));
 
--- 5. Index for efficient reverse sync queries (find synced registrations)
+-- 5. Index for reverse sync query performance
 CREATE INDEX IF NOT EXISTS idx_registrations_updated_at
     ON public.registrations(updated_at DESC);
