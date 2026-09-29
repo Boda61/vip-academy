@@ -50,7 +50,7 @@ const registrationSchema = z.object({
     .string()
     .min(5, "رقم الواتساب مطلوب بصيغة صحيحة")
     .regex(/^\+[1-9]\d{6,14}$/, "صيغة رقم الواتساب الدولي غير صحيحة"),
-  country: z.string().uuid("يرجى اختيار الدولة"),
+  country: z.string().min(2, "يرجى اختيار الدولة"),
   universityId: z.string().uuid("يرجى اختيار الجامعة"),
   academicYearId: z.string().uuid("يرجى اختيار الفرقة الدراسية"),
   semesterId: z.string().uuid("يرجى اختيار الترم الدراسي"),
