@@ -1,5 +1,5 @@
 -- ====================================================================
--- VIP Academy - Admin Registration Analytics RPC (Africa/Cairo timezone)
+-- VIP Academy - Exclude Cancelled and Sheet Deleted Registrations from Analytics
 -- ====================================================================
 
 CREATE OR REPLACE FUNCTION public.get_admin_registration_analytics()
