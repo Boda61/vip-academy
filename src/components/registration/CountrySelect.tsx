@@ -22,17 +22,19 @@ export default function CountrySelect({ value, onChange, error }: CountrySelectP
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full bg-white border rounded-xl pr-10 pl-4 py-3 text-sm text-slate-900 transition-all appearance-none cursor-pointer focus:outline-none focus:ring-2 ${
+          className={`w-full bg-white border rounded-xl pr-10 pl-4 py-3 text-sm transition-all appearance-none cursor-pointer focus:outline-none focus:ring-2 ${
+            !value ? "text-slate-400 font-normal" : "text-slate-900 font-medium"
+          } ${
             error
               ? "border-rose-300 focus:ring-rose-500/20"
               : "border-slate-200 focus:border-blue-600 focus:ring-blue-500/20"
           }`}
         >
-          <option value="" disabled>
+          <option value="" disabled className="text-slate-400">
             اختر الدولة...
           </option>
           {COUNTRIES_LIST.map((c) => (
-            <option key={c.code} value={c.nameAr}>
+            <option key={c.code} value={c.nameAr} className="text-slate-900">
               {c.flag} {c.nameAr} ({c.nameEn})
             </option>
           ))}

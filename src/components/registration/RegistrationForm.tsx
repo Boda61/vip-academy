@@ -99,7 +99,7 @@ export default function RegistrationForm({
       fullName: "",
       phoneNumber: "",
       whatsappNumber: "",
-      country: "مصر",
+      country: "",
       universityId: "",
       academicYearId: "",
       semesterId: "",
