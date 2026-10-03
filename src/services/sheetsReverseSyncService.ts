@@ -26,6 +26,7 @@ const EDITABLE_FIELDS_FROM_SHEET = [
   "phone_number",
   "whatsapp_number",
   "country",
+  "total_amount",
 ] as const;
 
 type EditableField = (typeof EDITABLE_FIELDS_FROM_SHEET)[number];
@@ -40,6 +41,10 @@ export interface SheetRowData {
   phoneNumber?: string;
   whatsappNumber?: string;
   country?: string;
+  totalAmount?: number | string;
+  total_amount?: number | string;
+  price?: number | string;
+  amount?: number | string;
 }
 
 export interface ReverseSyncEditResult {
@@ -69,8 +74,64 @@ export interface FullReverseSyncResult {
 }
 
 // ====================================================================
-// FIELD VALIDATION
+// FIELD VALIDATION & PARSING
 // ====================================================================
+
+/**
+ * Normalizes and converts a price/amount input into a valid positive number rounded to 2 decimal places.
+ * Handles:
+ * - Numbers directly (e.g. 500, 500.5)
+ * - Strings with decimals or commas (e.g. "500", "500.50", "1,500.00", "1.500,00", "500,50")
+ * - Arabic-Indic numbers (e.g. "٥٠٠", "٤٥٠.٥")
+ * - Currency symbols / labels (e.g. "500 EGP", "500 ج.م", "$500", "LE 500")
+ * Returns number if valid (>= 0), or null if invalid/NaN.
+ */
+export function parsePriceValue(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "number") {
+    if (isNaN(value) || !isFinite(value) || value < 0) return null;
+    return Math.round(value * 100) / 100;
+  }
+
+  let str = String(value).trim();
+  if (!str) return null;
+
+  // Convert Arabic-Indic numerals (٠-٩) to ASCII numerals (0-9)
+  const arabicDigits = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+  for (let i = 0; i < 10; i++) {
+    str = str.replace(new RegExp(arabicDigits[i], "g"), String(i));
+  }
+
+  // Remove currency words, symbols, and extra characters
+  str = str.replace(/[^\d.,\-+]/g, "").trim();
+  if (!str) return null;
+
+  // Handle format like "1,500.50" vs "1.500,50" vs "500,50"
+  if (str.includes(",") && str.includes(".")) {
+    if (str.indexOf(",") < str.indexOf(".")) {
+      // Standard: 1,500.50 -> 1500.50
+      str = str.replace(/,/g, "");
+    } else {
+      // European: 1.500,50 -> 1500.50
+      str = str.replace(/\./g, "").replace(/,/g, ".");
+    }
+  } else if (str.includes(",")) {
+    // Single comma, e.g. "500,50" or "1,500"
+    const parts = str.split(",");
+    if (parts.length === 2 && parts[1].length <= 2) {
+      str = str.replace(",", ".");
+    } else {
+      str = str.replace(/,/g, "");
+    }
+  }
+
+  const parsed = parseFloat(str);
+  if (isNaN(parsed) || !isFinite(parsed) || parsed < 0) {
+    return null;
+  }
+
+  return Math.round(parsed * 100) / 100;
+}
 
 /**
  * Validates a single field value from Google Sheets.
@@ -109,6 +170,17 @@ function validateField(field: EditableField, value: string): string | null {
       }
       return null;
 
+    case "total_amount": {
+      const parsed = parsePriceValue(trimmed);
+      if (parsed === null) {
+        return "المبلغ الإجمالي (السعر) يجب أن يكون رقماً موجباً صالحاً";
+      }
+      if (parsed > 1000000) {
+        return "المبلغ الإجمالي يتجاوز الحد الأقصى المسموح به (1,000,000)";
+      }
+      return null;
+    }
+
     default:
       return `الحقل ${field} غير معروف`;
   }
@@ -126,7 +198,7 @@ function validateField(field: EditableField, value: string): string | null {
  *   F: University (PROTECTED)
  *   G: Academic Year (PROTECTED)
  *   H: Subjects (PROTECTED)
- *   I: Total Amount (PROTECTED)
+ *   I: Total Amount (total_amount / price) ← EDITABLE
  *   J: Sync Status (PROTECTED)
  *   K: Spacer (PROTECTED)
  *   L: Registration ID (PROTECTED - identifier)
@@ -154,6 +226,11 @@ function parseSheetRowToEditable(rowValues: string[]): Partial<Record<EditableFi
     result.country = String(rowValues[4]).trim();
   }
 
+  // Column I (index 8) → total_amount
+  if (rowValues[8] !== undefined && rowValues[8] !== null && String(rowValues[8]).trim() !== "") {
+    result.total_amount = String(rowValues[8]).trim();
+  }
+
   return result;
 }
 
@@ -167,7 +244,7 @@ function parseSheetRowToEditable(rowValues: string[]): Partial<Record<EditableFi
  *
  * SAFETY:
  *  - Only updates whitelisted fields
- *  - Never changes registration_id, session_id, created_at, or payment fields
+ *  - Never changes registration_id, session_id, created_at
  *  - Never creates duplicate registrations
  *  - Skips if Supabase data is newer than the Sheet edit
  */
@@ -195,7 +272,7 @@ export async function processSheetRowEdit(
     // 2. Fetch existing registration from Supabase
     const { data: existingReg, error: fetchError } = await supabaseAdmin
       .from("registrations")
-      .select("id, full_name, phone_number, whatsapp_number, country, updated_at, sheet_updated_at, status, sync_status")
+      .select("id, full_name, phone_number, whatsapp_number, country, total_amount, updated_at, sheet_updated_at, status, sync_status")
       .eq("id", registrationId)
       .maybeSingle();
 
@@ -208,17 +285,18 @@ export async function processSheetRowEdit(
     }
 
     // 3. Build the update payload with only allowed fields
-    const updates: Record<string, string> = {};
+    const updates: Record<string, unknown> = {};
     const validationErrors: string[] = [];
 
-    const fieldMap: Record<string, EditableField> = {
+    // String fields
+    const stringFieldMap: Record<string, EditableField> = {
       fullName: "full_name",
       phoneNumber: "phone_number",
       whatsappNumber: "whatsapp_number",
       country: "country",
     };
 
-    for (const [inputKey, dbField] of Object.entries(fieldMap)) {
+    for (const [inputKey, dbField] of Object.entries(stringFieldMap)) {
       const value = data[inputKey as keyof SheetRowData];
       if (value !== undefined && value !== null && typeof value === "string" && value.trim() !== "") {
         const trimmedValue = value.trim();
@@ -233,6 +311,34 @@ export async function processSheetRowEdit(
           } else {
             updates[dbField] = trimmedValue;
           }
+        }
+      }
+    }
+
+    // Price / Total Amount field (supports totalAmount, total_amount, price, amount)
+    const rawPrice =
+      data.totalAmount !== undefined
+        ? data.totalAmount
+        : data.total_amount !== undefined
+        ? data.total_amount
+        : data.price !== undefined
+        ? data.price
+        : data.amount;
+
+    if (rawPrice !== undefined && rawPrice !== null && String(rawPrice).trim() !== "") {
+      const priceStr = String(rawPrice).trim();
+      const error = validateField("total_amount", priceStr);
+      if (error) {
+        validationErrors.push(`total_amount: ${error}`);
+      } else {
+        const parsedNewPrice = parsePriceValue(priceStr);
+        const currentPrice = parsePriceValue(existingReg.total_amount);
+
+        if (
+          parsedNewPrice !== null &&
+          (currentPrice === null || Math.abs(currentPrice - parsedNewPrice) > 0.001)
+        ) {
+          updates.total_amount = parsedNewPrice;
         }
       }
     }
@@ -282,6 +388,7 @@ export async function processSheetRowEdit(
     console.info("[ReverseSyncService] Sheet edit applied:", {
       registrationId,
       fieldsUpdated: Object.keys(updates),
+      updates,
     });
 
     return {
@@ -487,7 +594,7 @@ export async function performFullReverseSync(): Promise<FullReverseSyncResult> {
     //    Only consider registrations that were synced to Sheets at some point
     const { data: supabaseRegs, error: fetchError } = await supabaseAdmin
       .from("registrations")
-      .select("id, full_name, phone_number, whatsapp_number, country, status, sync_status, synced_at, updated_at, sheet_updated_at")
+      .select("id, full_name, phone_number, whatsapp_number, country, total_amount, status, sync_status, synced_at, updated_at, sheet_updated_at")
       .in("sync_status", ["synced", "sheet_modified", "sheet_deleted"]);
 
     if (fetchError) {
@@ -544,10 +651,22 @@ export async function performFullReverseSync(): Promise<FullReverseSyncResult> {
       let hasChanges = false;
       for (const field of EDITABLE_FIELDS_FROM_SHEET) {
         const sheetValue = sheetFields[field];
-        const dbValue = String(supabaseReg[field] || "").trim();
-        if (sheetValue && sheetValue !== dbValue) {
-          hasChanges = true;
-          break;
+        if (field === "total_amount") {
+          const parsedSheetPrice = parsePriceValue(sheetValue);
+          const dbPrice = parsePriceValue(supabaseReg.total_amount);
+          if (
+            parsedSheetPrice !== null &&
+            (dbPrice === null || Math.abs(parsedSheetPrice - dbPrice) > 0.001)
+          ) {
+            hasChanges = true;
+            break;
+          }
+        } else {
+          const dbValue = String(supabaseReg[field] || "").trim();
+          if (sheetValue && sheetValue !== dbValue) {
+            hasChanges = true;
+            break;
+          }
         }
       }
 
@@ -582,6 +701,7 @@ export async function performFullReverseSync(): Promise<FullReverseSyncResult> {
         phoneNumber: sheetFields.phone_number,
         whatsappNumber: sheetFields.whatsapp_number,
         country: sheetFields.country,
+        totalAmount: sheetFields.total_amount,
       });
       editResults.push(editResult);
     }

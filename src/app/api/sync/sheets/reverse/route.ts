@@ -91,8 +91,17 @@ export async function POST(request: NextRequest) {
     switch (action) {
       // ---- EDIT: Single row edit from Google Sheets ----
       case "edit": {
-        const { registrationId, fullName, phoneNumber, whatsappNumber, country } =
-          body as SheetRowData & { action: string };
+        const {
+          registrationId,
+          fullName,
+          phoneNumber,
+          whatsappNumber,
+          country,
+          totalAmount,
+          total_amount,
+          price,
+          amount,
+        } = body as SheetRowData & { action: string };
 
         if (
           !registrationId ||
@@ -111,6 +120,14 @@ export async function POST(request: NextRequest) {
           phoneNumber,
           whatsappNumber,
           country,
+          totalAmount:
+            totalAmount !== undefined
+              ? totalAmount
+              : total_amount !== undefined
+              ? total_amount
+              : price !== undefined
+              ? price
+              : amount,
         });
 
         if (!result.success) {

@@ -129,8 +129,48 @@ async function runTests() {
     console.log("Result:", passed ? "✅ PASSED" : "❌ FAILED", data);
   }
 
-  // TEST E: Google Sheets Row Deletion (Soft-Delete)
-  console.log("\n--- TEST E: Row Deletion -> Soft Delete ---");
+  // TEST E1: Google Sheets Price Edit (500 -> 600)
+  console.log("\n--- TEST E1: Price Edit (500 -> 600) ---");
+  {
+    const nowIso = new Date().toISOString();
+    const { data, error } = await supabaseAdmin
+      .from("registrations")
+      .update({
+        total_amount: 600.00,
+        sheet_updated_at: nowIso,
+        sync_status: "sheet_modified"
+      })
+      .eq("id", TEST_ID)
+      .select("id, total_amount, status, sync_status")
+      .single();
+
+    const passed = !error && Number(data.total_amount) === 600.00;
+    results.push({ test: "TEST E1 (Price Edit -> 600)", passed, data, error });
+    console.log("Result:", passed ? "✅ PASSED" : "❌ FAILED", data);
+  }
+
+  // TEST E2: Google Sheets Price Edit (600 -> 450)
+  console.log("\n--- TEST E2: Price Edit (600 -> 450) ---");
+  {
+    const nowIso = new Date().toISOString();
+    const { data, error } = await supabaseAdmin
+      .from("registrations")
+      .update({
+        total_amount: 450.00,
+        sheet_updated_at: nowIso,
+        sync_status: "sheet_modified"
+      })
+      .eq("id", TEST_ID)
+      .select("id, total_amount, status, sync_status")
+      .single();
+
+    const passed = !error && Number(data.total_amount) === 450.00;
+    results.push({ test: "TEST E2 (Price Edit -> 450)", passed, data, error });
+    console.log("Result:", passed ? "✅ PASSED" : "❌ FAILED", data);
+  }
+
+  // TEST E3: Google Sheets Row Deletion (Soft-Delete)
+  console.log("\n--- TEST E3: Row Deletion -> Soft Delete ---");
   {
     const nowIso = new Date().toISOString();
     const { data, error } = await supabaseAdmin

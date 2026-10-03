@@ -46,8 +46,8 @@ var CONFIG = {
   REGISTRATION_ID_COLUMN: 12,
 
   // Columns that contain editable data (1-indexed)
-  // B=2 (Name), C=3 (Phone), D=4 (WhatsApp), E=5 (Country)
-  EDITABLE_COLUMNS: [2, 3, 4, 5],
+  // B=2 (Name), C=3 (Phone), D=4 (WhatsApp), E=5 (Country), I=9 (Total Amount / Price)
+  EDITABLE_COLUMNS: [2, 3, 4, 5, 9],
 
   // Column J (index 10) = Sync Status
   SYNC_STATUS_COLUMN: 10,
@@ -178,6 +178,7 @@ function onEditTrigger(e) {
       phoneNumber: String(rowData[2] || "").trim(),    // Column C
       whatsappNumber: String(rowData[3] || "").trim(), // Column D
       country: String(rowData[4] || "").trim(),        // Column E
+      totalAmount: String(rowData[8] !== undefined && rowData[8] !== null ? rowData[8] : "").trim(), // Column I
     };
 
     Logger.log("[onEdit] Sending edit for row " + row + ": " + JSON.stringify(payload));
