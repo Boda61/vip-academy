@@ -31,7 +31,7 @@ export default function CountrySelect({ value, onChange, error }: CountrySelectP
           }`}
         >
           <option value="" disabled className="text-slate-400">
-            اختر الدولة...
+            اختر الجنسيه... <span className="text-rose-500">*</span>
           </option>
           {COUNTRIES_LIST.map((c) => (
             <option key={c.code} value={c.nameAr} className="text-slate-900">
